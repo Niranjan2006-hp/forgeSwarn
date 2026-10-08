@@ -24,6 +24,11 @@ class BaseLLMProvider(ABC):
         pass
 
     @abstractmethod
+    async def form_team(self, contract: Dict[str, Any], domain: str = "Healthcare", user_prompt: str = "") -> List[Dict[str, Any]]:
+        """Dynamically form specialized engineering team based on requirement and contract"""
+        pass
+
+    @abstractmethod
     async def diagnose_failure(self, failed_test: Dict[str, Any], logs: str, code_context: str) -> Dict[str, Any]:
         """Root cause analysis of failed test"""
         pass
@@ -220,6 +225,10 @@ class MockLLMProvider(BaseLLMProvider):
             ]
         }
 
+    async def form_team(self, contract: Dict[str, Any], domain: str = "Healthcare", user_prompt: str = "") -> List[Dict[str, Any]]:
+        from app.agents.registry import TeamFormationEngine
+        return TeamFormationEngine.form_team(contract, domain=domain, user_prompt=user_prompt)
+
     async def diagnose_failure(self, failed_test: Dict[str, Any], logs: str, code_context: str) -> Dict[str, Any]:
         is_calc = (
             "calculator" in logs.lower() 
@@ -345,6 +354,9 @@ class GeminiProvider(BaseLLMProvider):
         except Exception as e:
             return await self.mock_fallback.generate_contract(structured_reqs)
 
+    async def form_team(self, contract: Dict[str, Any], domain: str = "Healthcare", user_prompt: str = "") -> List[Dict[str, Any]]:
+        return await self.mock_fallback.form_team(contract, domain=domain, user_prompt=user_prompt)
+
     async def diagnose_failure(self, failed_test: Dict[str, Any], logs: str, code_context: str) -> Dict[str, Any]:
         return await self.mock_fallback.diagnose_failure(failed_test, logs, code_context)
 
@@ -379,6 +391,9 @@ class OpenAIProvider(BaseLLMProvider):
 
     async def generate_contract(self, structured_reqs: Dict[str, Any]) -> Dict[str, Any]:
         return await self.mock_fallback.generate_contract(structured_reqs)
+
+    async def form_team(self, contract: Dict[str, Any], domain: str = "Healthcare", user_prompt: str = "") -> List[Dict[str, Any]]:
+        return await self.mock_fallback.form_team(contract, domain=domain, user_prompt=user_prompt)
 
     async def diagnose_failure(self, failed_test: Dict[str, Any], logs: str, code_context: str) -> Dict[str, Any]:
         return await self.mock_fallback.diagnose_failure(failed_test, logs, code_context)

@@ -228,7 +228,11 @@ class SwarmOrchestrator:
         contract = self.db.query(EngineeringContract).filter(EngineeringContract.project_id == self.project.id).first()
         contract_data = contract.content_json if contract else {}
 
-        selected_agents = TeamFormationEngine.form_team(contract_data, domain=self.project.domain)
+        selected_agents = await self.llm.form_team(
+            contract=contract_data,
+            domain=self.project.domain,
+            user_prompt=self.project.raw_requirement
+        )
 
         for ag in selected_agents:
             agent_record = Agent(
@@ -246,10 +250,26 @@ class SwarmOrchestrator:
             )
             self.db.add(agent_record)
 
+        # Artifact: swarm_roster.json
+        art = Artifact(
+            project_id=self.project.id,
+            filename="swarm_roster.json",
+            file_type="json",
+            content=json.dumps(selected_agents, indent=2),
+            created_by="Orchestrator"
+        )
+        self.db.add(art)
         self.db.commit()
 
-        await self.log_agent_message("Orchestrator", f"Formed dynamic swarm of {len(selected_agents)} specialized agents tailored to {self.project.domain} domain.")
-        await self.emit_event("team.formed", "Orchestrator", f"Dynamically assembled {len(selected_agents)} engineering agents with verified capabilities.", {"count": len(selected_agents)}, level="SUCCESS")
+        agent_names = ", ".join([ag["name"] for ag in selected_agents])
+        await self.log_agent_message("Orchestrator", f"Formed dynamic swarm of {len(selected_agents)} specialized agents tailored specifically to '{self.project.name}': {agent_names}.")
+        await self.emit_event(
+            "team.formed", 
+            "Orchestrator", 
+            f"Dynamically assembled {len(selected_agents)} specialized engineering agents based on project requirements.", 
+            {"count": len(selected_agents), "agents": [ag["name"] for ag in selected_agents]}, 
+            level="SUCCESS"
+        )
 
     async def step_design_architecture(self):
         self.project.status = "ARCHITECTING"
