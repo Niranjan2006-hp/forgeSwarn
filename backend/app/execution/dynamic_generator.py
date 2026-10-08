@@ -76,6 +76,9 @@ class User(Base):
     name = Column(String(100), nullable=False)
     email = Column(String(120), unique=True, index=True, nullable=False)
     password_hash = Column(String(255), nullable=False)
+    role = Column(String(50), default="MEMBER")
+    is_active = Column(String(10), default="TRUE")
+    created_at = Column(DateTime, default=datetime.utcnow)
     allocations = relationship("{alloc_cls}", back_populates="user")
 
 class {item_cls}(Base):
@@ -84,6 +87,8 @@ class {item_cls}(Base):
     name = Column(String(120), nullable=False)
     {spec.item_attr1_name} = Column(String(100), nullable=False)
     {spec.item_attr2_name} = Column(String(100), nullable=False)
+    status = Column(String(50), default="AVAILABLE")
+    created_at = Column(DateTime, default=datetime.utcnow)
     allocations = relationship("{alloc_cls}", back_populates="{spec.item_singular}")
 
 class {alloc_cls}(Base):
@@ -99,6 +104,15 @@ class {alloc_cls}(Base):
     {spec.item_singular} = relationship("{item_cls}", back_populates="allocations")
     user = relationship("User", back_populates="allocations")
     {table_args_str}
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+    id = Column(Integer, primary_key=True, index=True)
+    action = Column(String(100), nullable=False)
+    entity_name = Column(String(100), nullable=False)
+    entity_id = Column(Integer, nullable=True)
+    details = Column(String(255), nullable=True)
+    timestamp = Column(DateTime, default=datetime.utcnow)
 """)
 
         # 5. app/services/allocation_service.py
@@ -198,7 +212,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import engine, Base, get_db
-from app.models import User, {item_cls}, {alloc_cls}
+from app.models import User, {item_cls}, {alloc_cls}, AuditLog
 from app.services.allocation_service import execute_allocation
 
 # Initialize tables
@@ -372,6 +386,11 @@ def cancel_allocation(allocation_id: int, user: User = Depends(get_current_user)
 @app.delete("/api/appointments/{{appointment_id}}")
 def cancel_appointment_alias(appointment_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     return cancel_allocation(appointment_id, user, db)
+
+@app.get("/api/audit-logs")
+def get_audit_logs(db: Session = Depends(get_db)):
+    logs = db.query(AuditLog).order_by(AuditLog.timestamp.desc()).limit(20).all()
+    return [{{"id": l.id, "action": l.action, "entity_name": l.entity_name, "entity_id": l.entity_id, "details": l.details, "timestamp": str(l.timestamp)}} for l in logs]
 
 @app.get("/", response_class=HTMLResponse)
 def index_page():

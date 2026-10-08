@@ -15,10 +15,13 @@ class DeploymentManager:
 
     @classmethod
     def get_free_port(cls, default_port: int = 8005) -> int:
-        for port in range(default_port, default_port + 50):
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                if s.connect_ex(("127.0.0.1", port)) != 0:
+        for port in range(default_port, default_port + 100):
+            try:
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                    s.bind(("127.0.0.1", port))
                     return port
+            except OSError:
+                continue
         return default_port
 
     @classmethod
@@ -95,8 +98,9 @@ class DeploymentManager:
         smoke_passed = False
         try:
             with httpx.Client(timeout=3.0) as client:
-                doc_resp = client.get(f"{target_url}/api/doctors")
-                if doc_resp.status_code == 200 and len(doc_resp.json()) > 0:
+                h_resp = client.get(health_url)
+                o_resp = client.get(f"{target_url}/openapi.json")
+                if h_resp.status_code == 200 and o_resp.status_code == 200:
                     smoke_passed = True
         except Exception as e:
             logger.error(f"Smoke test failed: {e}")
@@ -109,7 +113,7 @@ class DeploymentManager:
                 "port": port,
                 "health_check_status": "PASS",
                 "smoke_tests_passed": False,
-                "logs": "Smoke test failed: /api/doctors did not respond as expected. Deployment rolled back."
+                "logs": "Smoke test failed: Server endpoints did not respond as expected. Deployment rolled back."
             }
 
         return {

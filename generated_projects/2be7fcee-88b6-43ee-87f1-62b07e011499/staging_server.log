@@ -1,0 +1,13 @@
+INFO:     Started server process [9084]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8005 (Press CTRL+C to quit)
+INFO:     127.0.0.1:54743 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54745 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54745 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54750 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54751 - "GET /api/courses HTTP/1.1" 404 Not Found
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [9084]
