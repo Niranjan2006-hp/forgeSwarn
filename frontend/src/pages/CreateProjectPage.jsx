@@ -27,8 +27,8 @@ const PRESET_REQUIREMENTS = [
 
 export default function CreateProjectPage() {
   const navigate = useNavigate();
-  const [name, setName] = useState(PRESET_REQUIREMENTS[0].name);
-  const [requirement, setRequirement] = useState(PRESET_REQUIREMENTS[0].requirement);
+  const [name, setName] = useState('');
+  const [requirement, setRequirement] = useState('');
   const [appType, setAppType] = useState('Web Application');
   const [techPref, setTechPref] = useState('FastAPI + React + SQLAlchemy');
   const [deployTarget, setDeployTarget] = useState('Docker / Local Sandbox');
@@ -130,6 +130,7 @@ export default function CreateProjectPage() {
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. University Course Registration System"
               className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500 transition font-medium"
               required
             />

@@ -17,6 +17,19 @@ export default function Header({ activeProject }) {
       .catch(err => console.error("Error fetching project list in header", err));
   }, [activeProject?.id]);
 
+  const handleNewRequirementClick = (e) => {
+    if (e) e.preventDefault();
+    setIsDropdownOpen(false);
+    const inputEl = document.getElementById('new-requirement-input');
+    const container = document.getElementById('new-requirement-console');
+    if (inputEl) {
+      container?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => inputEl.focus(), 150);
+    } else {
+      navigate('/?focus=requirement');
+    }
+  };
+
   const getStatusBadge = (status) => {
     switch (status) {
       case 'COMPLETED':
@@ -134,14 +147,13 @@ export default function Header({ activeProject }) {
                 </div>
 
                 <div className="p-2 border-t border-slate-800 bg-slate-950/60">
-                  <Link
-                    to="/new"
-                    onClick={() => setIsDropdownOpen(false)}
+                  <button
+                    onClick={handleNewRequirementClick}
                     className="flex items-center justify-center space-x-1.5 text-xs text-cyan-400 hover:text-cyan-300 font-medium py-1.5 rounded-lg hover:bg-cyan-950/40 transition w-full"
                   >
                     <PlusCircle className="w-3.5 h-3.5" />
-                    <span>Create Another Project</span>
-                  </Link>
+                    <span>Input New Requirement</span>
+                  </button>
                 </div>
               </div>
             )}
@@ -166,13 +178,13 @@ export default function Header({ activeProject }) {
             <span>Overview</span>
           </Link>
 
-          <Link
-            to="/new"
+          <button
+            onClick={handleNewRequirementClick}
             className="bg-cyan-600 hover:bg-cyan-500 text-white px-3.5 py-1.5 rounded-lg text-xs font-semibold transition flex items-center space-x-1.5 shadow-md shadow-cyan-600/30"
           >
             <PlusCircle className="w-3.5 h-3.5" />
             <span>New Requirement</span>
-          </Link>
+          </button>
         </div>
       </div>
     </header>

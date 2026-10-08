@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sparkles, Play, PlusCircle, Layers, ChevronDown, ChevronUp, Bot, ShieldCheck } from 'lucide-react';
 import { projectApi } from '../services/api';
@@ -44,6 +44,20 @@ export default function QuickRequirementBar({ onProjectCreated }) {
   const [llmProvider, setLlmProvider] = useState('mock');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  useEffect(() => {
+    if (window.location.search.includes('focus=requirement') || window.location.hash.includes('requirement')) {
+      setIsExpanded(true);
+      setTimeout(() => {
+        const el = document.getElementById('new-requirement-input');
+        const container = document.getElementById('new-requirement-console');
+        if (el) {
+          container?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          el.focus();
+        }
+      }, 150);
+    }
+  }, []);
+
   const handleApplyPreset = (preset) => {
     setName(preset.name);
     setRequirement(preset.requirement);
@@ -85,7 +99,7 @@ export default function QuickRequirementBar({ onProjectCreated }) {
   };
 
   return (
-    <div className="bg-gradient-to-r from-slate-900 via-slate-900 to-[#0c1424] border border-cyan-500/30 rounded-2xl shadow-xl shadow-cyan-950/20 overflow-hidden">
+    <div id="new-requirement-console" className="bg-gradient-to-r from-slate-900 via-slate-900 to-[#0c1424] border border-cyan-500/30 rounded-2xl shadow-xl shadow-cyan-950/20 overflow-hidden">
       {/* Header bar / toggle */}
       <div 
         onClick={() => setIsExpanded(!isExpanded)}
@@ -146,6 +160,7 @@ export default function QuickRequirementBar({ onProjectCreated }) {
               Natural-Language Software Requirement:
             </label>
             <textarea
+              id="new-requirement-input"
               rows={3}
               value={requirement}
               onChange={(e) => setRequirement(e.target.value)}
