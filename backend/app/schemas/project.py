@@ -24,6 +24,12 @@ class RequirementSchema(BaseModel):
     class Config:
         from_attributes = True
 
+class RequirementCreate(BaseModel):
+    title: str
+    description: str
+    req_type: str = "FUNCTIONAL"
+    priority: str = "HIGH"
+
 class EngineeringContractSchema(BaseModel):
     id: str
     project_id: str

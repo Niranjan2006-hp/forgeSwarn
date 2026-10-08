@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { 
   Activity, Users, Compass, FileSearch, Code2, FlaskConical, 
   Wrench, ShieldCheck, Rocket, Terminal, BookOpen, Scale, 
@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import Header from '../components/Header';
 import PipelineTracker from '../components/PipelineTracker';
+import QuickRequirementBar from '../components/QuickRequirementBar';
 import AgentSwarmPanel from '../components/AgentSwarmPanel';
 import SelfRepairPanel from '../components/SelfRepairPanel';
 import TraceabilityMatrix from '../components/TraceabilityMatrix';
@@ -19,6 +20,7 @@ import { projectApi } from '../services/api';
 
 export default function ProjectDashboard() {
   const { projectId } = useParams();
+  const navigate = useNavigate();
   const [project, setProject] = useState(null);
   const [agents, setAgents] = useState([]);
   const [events, setEvents] = useState([]);
@@ -176,6 +178,9 @@ export default function ProjectDashboard() {
           </div>
         </div>
 
+        {/* Dedicated Requirement Input Column / Bar */}
+        <QuickRequirementBar onProjectCreated={(newId) => navigate(`/project/${newId}`)} />
+
         {/* Live Pipeline Tracker */}
         <PipelineTracker currentStatus={project?.status || 'CREATED'} />
 
@@ -258,7 +263,7 @@ export default function ProjectDashboard() {
           )}
 
           {activeTab === 'traceability' && (
-            <TraceabilityMatrix requirements={requirements} tests={tests} />
+            <TraceabilityMatrix projectId={project?.id} requirements={requirements} tests={tests} onRequirementAdded={fetchProjectData} />
           )}
 
           {activeTab === 'artifacts' && (

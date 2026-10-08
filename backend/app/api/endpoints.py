@@ -11,7 +11,7 @@ from app.models import (
     Artifact, Decision, TestCase, Bug, RepairAttempt, Deployment, ProjectEvent
 )
 from app.schemas.project import (
-    ProjectCreate, ProjectResponse, RequirementSchema,
+    ProjectCreate, ProjectResponse, RequirementSchema, RequirementCreate,
     EngineeringContractSchema, AgentSchema, AgentMessageSchema,
     ArtifactSchema, DecisionSchema, TestCaseSchema, BugSchema,
     RepairAttemptSchema, DeploymentSchema, ProjectEventSchema,
@@ -148,6 +148,30 @@ def get_project_messages(project_id: str, db: Session = Depends(get_db)):
 @router.get("/projects/{project_id}/requirements", response_model=List[RequirementSchema])
 def get_project_requirements(project_id: str, db: Session = Depends(get_db)):
     return db.query(Requirement).filter(Requirement.project_id == project_id).all()
+
+@router.post("/projects/{project_id}/requirements", response_model=RequirementSchema, status_code=201)
+def add_project_requirement(project_id: str, data: RequirementCreate, db: Session = Depends(get_db)):
+    proj = db.query(Project).filter(Project.id == project_id).first()
+    if not proj:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    count = db.query(Requirement).filter(Requirement.project_id == project_id, Requirement.req_type == data.req_type).count() + 1
+    prefix = "FR" if data.req_type == "FUNCTIONAL" else ("BR" if data.req_type == "BUSINESS_RULE" else "SEC")
+    code = f"{prefix}-{count:03d}"
+
+    req = Requirement(
+        project_id=project_id,
+        req_type=data.req_type,
+        code=code,
+        title=data.title,
+        description=data.description,
+        priority=data.priority,
+        status="PENDING"
+    )
+    db.add(req)
+    db.commit()
+    db.refresh(req)
+    return req
 
 @router.get("/projects/{project_id}/contract")
 def get_project_contract(project_id: str, db: Session = Depends(get_db)):

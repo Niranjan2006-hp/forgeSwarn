@@ -1,7 +1,35 @@
-import React from 'react';
-import { CheckCircle2, XCircle, Clock, ShieldCheck, BookmarkCheck } from 'lucide-react';
+import React, { useState } from 'react';
+import { CheckCircle2, XCircle, Clock, ShieldCheck, BookmarkCheck, PlusCircle, Send } from 'lucide-react';
+import { projectApi } from '../services/api';
 
-export default function TraceabilityMatrix({ requirements = [], tests = [] }) {
+export default function TraceabilityMatrix({ projectId, requirements = [], tests = [], onRequirementAdded }) {
+  const [newTitle, setNewTitle] = useState('');
+  const [newDesc, setNewDesc] = useState('');
+  const [newType, setNewType] = useState('FUNCTIONAL');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleAddRequirement = async (e) => {
+    e.preventDefault();
+    if (!newTitle.trim() || !projectId) return;
+
+    setIsSubmitting(true);
+    try {
+      await projectApi.addRequirement(projectId, {
+        title: newTitle.trim(),
+        description: newDesc.trim() || newTitle.trim(),
+        req_type: newType,
+        priority: 'HIGH'
+      });
+      setNewTitle('');
+      setNewDesc('');
+      if (onRequirementAdded) onRequirementAdded();
+    } catch (err) {
+      console.error('Failed to add requirement:', err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const getStatusIcon = (status) => {
     switch (status) {
       case 'VERIFIED':
@@ -117,6 +145,71 @@ export default function TraceabilityMatrix({ requirements = [], tests = [] }) {
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* Add New Requirement Input Column */}
+      <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg">
+        <div className="flex items-center space-x-2.5 mb-3">
+          <PlusCircle className="w-4 h-4 text-cyan-400" />
+          <h4 className="text-xs font-mono uppercase tracking-wider text-slate-200 font-bold">
+            Append New Requirement or Rule to Project Contract
+          </h4>
+        </div>
+
+        <form onSubmit={handleAddRequirement} className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+          <div className="sm:col-span-3">
+            <label className="block text-[10px] font-mono uppercase text-slate-400 mb-1">
+              Requirement Type
+            </label>
+            <select
+              value={newType}
+              onChange={(e) => setNewType(e.target.value)}
+              className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-cyan-500"
+            >
+              <option value="FUNCTIONAL">Functional Requirement (FR)</option>
+              <option value="BUSINESS_RULE">Business Rule (BR)</option>
+              <option value="SECURITY">Security Invariant (SEC)</option>
+            </select>
+          </div>
+
+          <div className="sm:col-span-4">
+            <label className="block text-[10px] font-mono uppercase text-slate-400 mb-1">
+              Title / Short Name
+            </label>
+            <input
+              type="text"
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
+              placeholder="e.g. Export Audit Log as PDF"
+              className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-cyan-500"
+              required
+            />
+          </div>
+
+          <div className="sm:col-span-3">
+            <label className="block text-[10px] font-mono uppercase text-slate-400 mb-1">
+              Detailed Description / Acceptance Rule
+            </label>
+            <input
+              type="text"
+              value={newDesc}
+              onChange={(e) => setNewDesc(e.target.value)}
+              placeholder="e.g. Verified users can download signed PDF log"
+              className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-cyan-500"
+            />
+          </div>
+
+          <div className="sm:col-span-2">
+            <button
+              type="submit"
+              disabled={isSubmitting || !newTitle.trim()}
+              className="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs py-2 px-3 rounded-lg transition flex items-center justify-center space-x-1.5 disabled:opacity-50"
+            >
+              <Send className="w-3.5 h-3.5" />
+              <span>{isSubmitting ? 'Adding...' : 'Add Req'}</span>
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

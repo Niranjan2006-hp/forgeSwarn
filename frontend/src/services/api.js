@@ -16,6 +16,7 @@ export const projectApi = {
   getEvents: (id) => api.get(`/projects/${id}/events`),
   getMessages: (id) => api.get(`/projects/${id}/messages`),
   getRequirements: (id) => api.get(`/projects/${id}/requirements`),
+  addRequirement: (id, data) => api.post(`/projects/${id}/requirements`, data),
   getContract: (id) => api.get(`/projects/${id}/contract`),
   getArtifacts: (id) => api.get(`/projects/${id}/artifacts`),
   getArtifactContent: (id, filename) => api.get(`/projects/${id}/artifacts/${filename}`),

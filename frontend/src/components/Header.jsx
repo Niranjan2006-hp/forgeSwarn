@@ -1,9 +1,21 @@
-import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Cpu, Activity, PlusCircle, Home, Layers, CheckCircle2, AlertTriangle, ShieldCheck } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Cpu, Activity, PlusCircle, Home, Layers, CheckCircle2, AlertTriangle, ShieldCheck, ChevronDown, FolderGit2 } from 'lucide-react';
+import { projectApi } from '../services/api';
 
 export default function Header({ activeProject }) {
   const location = useLocation();
+  const navigate = useNavigate();
+  const [allProjects, setAllProjects] = useState([]);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    projectApi.getProjects()
+      .then(res => {
+        if (res.data) setAllProjects(res.data);
+      })
+      .catch(err => console.error("Error fetching project list in header", err));
+  }, [activeProject?.id]);
 
   const getStatusBadge = (status) => {
     switch (status) {
@@ -75,16 +87,69 @@ export default function Header({ activeProject }) {
             </div>
           </Link>
 
+          {/* Project Switcher Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              className="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-slate-900/80 hover:bg-slate-800 border border-slate-800 text-xs transition"
+            >
+              <FolderGit2 className="w-3.5 h-3.5 text-cyan-400" />
+              <span className="text-slate-200 font-semibold max-w-[160px] sm:max-w-[220px] truncate">
+                {activeProject?.name || 'Select Project'}
+              </span>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+            </button>
+
+            {isDropdownOpen && (
+              <div 
+                className="absolute left-0 mt-2 w-80 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl py-2 z-50 overflow-hidden"
+                onMouseLeave={() => setIsDropdownOpen(false)}
+              >
+                <div className="px-3 py-1.5 border-b border-slate-800 flex items-center justify-between text-[10px] font-mono uppercase text-slate-400">
+                  <span>Engineered Projects</span>
+                  <span>{allProjects.length} total</span>
+                </div>
+
+                <div className="max-h-64 overflow-y-auto divide-y divide-slate-800/60">
+                  {allProjects.map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => {
+                        setIsDropdownOpen(false);
+                        navigate(`/project/${p.id}`);
+                      }}
+                      className={`w-full text-left px-3.5 py-2.5 hover:bg-slate-800 transition flex items-center justify-between ${
+                        p.id === activeProject?.id ? 'bg-cyan-950/40 text-cyan-300 font-semibold' : 'text-slate-300'
+                      }`}
+                    >
+                      <div className="truncate mr-2">
+                        <div className="text-xs truncate">{p.name}</div>
+                        <div className="text-[10px] text-slate-400 truncate">{p.raw_requirement}</div>
+                      </div>
+                      <span className="shrink-0 text-[10px] font-mono px-2 py-0.5 rounded bg-slate-950 border border-slate-800">
+                        {p.status}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="p-2 border-t border-slate-800 bg-slate-950/60">
+                  <Link
+                    to="/new"
+                    onClick={() => setIsDropdownOpen(false)}
+                    className="flex items-center justify-center space-x-1.5 text-xs text-cyan-400 hover:text-cyan-300 font-medium py-1.5 rounded-lg hover:bg-cyan-950/40 transition w-full"
+                  >
+                    <PlusCircle className="w-3.5 h-3.5" />
+                    <span>Create Another Project</span>
+                  </Link>
+                </div>
+              </div>
+            )}
+          </div>
+
           {activeProject && (
-            <div className="hidden lg:flex items-center pl-4 border-l border-slate-800 space-x-3">
-              <span className="text-xs text-slate-400">Project:</span>
-              <span className="text-xs font-semibold text-slate-200">{activeProject.name}</span>
+            <div className="hidden lg:flex items-center pl-2 space-x-2">
               {getStatusBadge(activeProject.status)}
-              {activeProject.is_demo_mode && (
-                <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-slate-800 text-amber-300 border border-amber-900/50">
-                  DEMO MODE
-                </span>
-              )}
             </div>
           )}
         </div>

@@ -5,6 +5,7 @@ import {
   ArrowRight, FileSearch, Terminal, Database, Activity, Sparkles, Layers 
 } from 'lucide-react';
 import Header from '../components/Header';
+import QuickRequirementBar from '../components/QuickRequirementBar';
 
 export default function LandingPage() {
   return (
@@ -30,21 +31,18 @@ export default function LandingPage() {
             ForgeSwarm is not a chatbot or prompt-to-file generator. It is an autonomous software engineering organization that analyzes requirements, forms specialized agent teams, writes architecture, detects failures under concurrency, diagnoses root causes, self-repairs, and verifies deployment.
           </p>
 
-          <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
-            <Link
-              to="/new"
-              className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold px-6 py-3 rounded-xl transition shadow-lg shadow-cyan-600/30 flex items-center space-x-2 text-sm"
-            >
-              <span>START ENGINEERING</span>
-              <ArrowRight className="w-4 h-4" />
-            </Link>
+          {/* Direct Requirement Input Column */}
+          <div className="pt-2 text-left max-w-4xl mx-auto">
+            <QuickRequirementBar />
+          </div>
 
+          <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
             <Link
-              to="/project/latest"
-              className="bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 font-bold px-6 py-3 rounded-xl transition flex items-center space-x-2 text-sm"
+              to="/project"
+              className="bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 font-bold px-6 py-3 rounded-xl transition flex items-center space-x-2 text-sm shadow-md"
             >
               <Activity className="w-4 h-4 text-cyan-400" />
-              <span>VIEW LIVE SWARM DEMO</span>
+              <span>VIEW CURRENT ACTIVE SWARM</span>
             </Link>
           </div>
         </div>

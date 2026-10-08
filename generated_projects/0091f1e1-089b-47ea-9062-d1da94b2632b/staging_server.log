@@ -1,0 +1,41 @@
+INFO:     Started server process [6036]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8017 (Press CTRL+C to quit)
+INFO:     127.0.0.1:64666 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64667 - "GET /api/doctors HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57816 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57816 - "GET /api/doctors HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57816 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:57816 - "POST /api/auth/register HTTP/1.1" 201 Created
+INFO:     127.0.0.1:57816 - "GET /api/allocations HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57816 - "GET /api/doctors/1/slots HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59155 - "GET /api/doctors/2/slots HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59155 - "POST /api/allocations HTTP/1.1" 201 Created
+INFO:     127.0.0.1:59155 - "GET /api/allocations HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58341 - "GET /api/doctors/2/slots HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57666 - "POST /api/auth/register HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:65519 - "POST /api/auth/register HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:65519 - "POST /api/auth/register HTTP/1.1" 201 Created
+INFO:     127.0.0.1:65519 - "GET /api/allocations HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65519 - "GET /api/doctors/3/slots HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65519 - "POST /api/allocations HTTP/1.1" 201 Created
+INFO:     127.0.0.1:56027 - "GET /api/doctors/3/slots HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65519 - "GET /api/allocations HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65519 - "GET /api/doctors/4/slots HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65519 - "POST /api/allocations HTTP/1.1" 201 Created
+INFO:     127.0.0.1:64011 - "GET /api/doctors/4/slots HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65519 - "GET /api/allocations HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51468 - "POST /api/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51468 - "GET /api/allocations HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51468 - "GET /api/doctors/4/slots HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51468 - "GET /api/doctors/4/slots HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51468 - "GET /api/doctors/4/slots HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51468 - "GET /api/doctors/2/slots HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51468 - "GET /api/doctors/1/slots HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51468 - "GET /api/doctors/3/slots HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51468 - "GET /api/doctors/4/slots HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [6036]
