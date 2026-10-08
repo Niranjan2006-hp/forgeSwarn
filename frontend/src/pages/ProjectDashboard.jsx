@@ -313,7 +313,7 @@ export default function ProjectDashboard() {
           )}
 
           {activeTab === 'report' && (
-            <FinalReport project={project} metrics={project?.metrics} tests={tests} bugs={bugs} repairs={repairs} />
+            <FinalReport project={project} metrics={project?.metrics} tests={tests} bugs={bugs} repairs={repairs} requirements={requirements} />
           )}
         </div>
       </main>

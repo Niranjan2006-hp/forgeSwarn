@@ -200,6 +200,7 @@ def execute_allocation(db: Session, {spec.item_singular}_id: int, user_id: int, 
         for s in spec.seed_items:
             seed_lines.append(f'            {item_cls}(name="{s["name"]}", {spec.item_attr1_name}="{s["attr1"]}", {spec.item_attr2_name}="{s["attr2"]}"),')
         seeds_str = "\n".join(seed_lines)
+        options_repr = repr(spec.seed_options)
 
         # 7. app/main.py
         workspace.write_file("app/main.py", f"""import hashlib
@@ -311,11 +312,7 @@ def get_{spec.item_singular}_slots({spec.item_singular}_id: int, date: str = "20
     item = db.query({item_cls}).filter({item_cls}.id == {spec.item_singular}_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="{item_cls} not found")
-        
-    all_slots = [
-        f"{{date}} Slot 1 (09:00 AM)", f"{{date}} Slot 2 (10:00 AM)", f"{{date}} Slot 3 (11:00 AM)",
-        f"{{date}} Slot 4 (01:00 PM)", f"{{date}} Slot 5 (02:00 PM)", f"{{date}} Slot 6 (03:00 PM)"
-    ]
+    all_slots = {options_repr}
     
     allocated = db.query({alloc_cls}.slot_time).filter(
         {alloc_cls}.{spec.item_singular}_id == {spec.item_singular}_id,
@@ -436,29 +433,33 @@ def index_page():
       <div id="auth-alert" class="mt-3 text-xs p-2 rounded hidden"></div>
     </div>
 
-    <!-- Catalog & Slot Selection -->
+    <!-- Catalog & Selection Panel -->
     <div class="md:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg">
-      <h2 class="text-lg font-semibold text-cyan-400 mb-3">Available {spec.item_plural.capitalize()} Catalog</h2>
+      <h2 class="text-lg font-semibold text-cyan-400 mb-3">{spec.catalog_title}</h2>
       <div id="item-list" class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
         <div class="text-xs text-slate-500">Loading catalog...</div>
       </div>
 
       <div id="slot-container" class="mt-4 pt-4 border-t border-slate-800 hidden">
-        <h3 class="text-sm font-semibold text-slate-200 mb-2">Select Allocation Slot for <span id="selected-item-name" class="text-cyan-300"></span></h3>
-        <div id="slot-buttons" class="grid grid-cols-2 sm:grid-cols-3 gap-2"></div>
-        <div class="mt-4 flex space-x-2">
-          <input id="notes-input" type="text" placeholder="Notes / Purpose" class="flex-1 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-xs text-white" value="Standard {spec.action_name}">
-          <button onclick="bookSelectedSlot()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-4 py-2 rounded transition">Confirm {spec.action_name.capitalize()}</button>
+        <h3 class="text-sm font-semibold text-slate-200 mb-3">{spec.action_label} for <span id="selected-item-name" class="text-cyan-300"></span></h3>
+        <div class="mb-3">
+          <label class="block text-xs font-mono uppercase text-slate-400 mb-1.5">{spec.options_label}:</label>
+          <div id="slot-buttons" class="grid grid-cols-1 sm:grid-cols-2 gap-2"></div>
+        </div>
+        <div class="space-y-2">
+          <label class="block text-xs font-mono uppercase text-slate-400">{spec.primary_input_label}:</label>
+          <input id="notes-input" type="text" placeholder="{spec.primary_input_placeholder}" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500">
+          <button onclick="bookSelectedSlot()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold py-2.5 px-4 rounded-lg transition mt-2">{spec.action_label}</button>
         </div>
         <div id="booking-alert" class="mt-3 text-xs p-2 rounded hidden"></div>
       </div>
     </div>
   </div>
 
-  <!-- User Allocations History -->
+  <!-- User Records History -->
   <div class="mt-6 bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg">
     <div class="flex justify-between items-center mb-3">
-      <h2 class="text-lg font-semibold text-cyan-400">My Active {spec.action_past.capitalize()} Records (FR-006 Traceability)</h2>
+      <h2 class="text-lg font-semibold text-cyan-400">{spec.record_title} (FR-006 Traceability)</h2>
       <button onclick="fetchAllocations()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1 rounded">Refresh</button>
     </div>
     <div id="allocations-list" class="divide-y divide-slate-800 text-sm">
@@ -543,10 +544,13 @@ def index_page():
       const items = await res.json();
       const container = document.getElementById('item-list');
       container.innerHTML = items.map(i => `
-        <div onclick="selectItem(${{i.id}}, '${{i.name}}')" class="p-3 bg-slate-800/80 hover:bg-slate-700/80 cursor-pointer rounded-lg border border-slate-700 transition">
-          <div class="font-medium text-white text-sm">${{i.name}}</div>
-          <div class="text-xs text-cyan-400 mt-0.5">${{i.{spec.item_attr1_name}}}</div>
-          <div class="text-xs text-slate-400 mt-1">${{i.{spec.item_attr2_name}}}</div>
+        <div onclick="selectItem(${{i.id}}, '${{i.name}}')" class="p-3.5 bg-slate-800/80 hover:bg-slate-700/80 cursor-pointer rounded-lg border border-slate-700 transition flex flex-col justify-between">
+          <div>
+            <div class="font-semibold text-white text-sm">${{i.name}}</div>
+            <div class="text-xs text-cyan-400 mt-1 font-medium">${{i.{spec.item_attr1_name}}}</div>
+            <div class="text-xs text-slate-400 mt-0.5">${{i.{spec.item_attr2_name}}}</div>
+          </div>
+          <button class="mt-3 text-[11px] bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-700 text-cyan-300 font-semibold px-2.5 py-1 rounded w-fit">{spec.action_label}</button>
         </div>
       `).join('');
     }}
@@ -579,7 +583,7 @@ def index_page():
         return;
       }}
       if (!selectedItemId || !selectedSlot) {{
-        alert('Please select an item and available slot');
+        alert('Please select an item and option first!');
         return;
       }}
       const notes = document.getElementById('notes-input').value;
@@ -598,14 +602,14 @@ def index_page():
         }});
         const data = await res.json();
         if (res.ok) {{
-          showAlert('booking-alert', 'Confirmed allocation #' + data.id + ' for ' + data.slot_time, 'emerald');
+          showAlert('booking-alert', 'Successfully processed ' + data.item_name + ' (' + data.slot_time + ')', 'emerald');
           fetchAllocations();
           selectItem(selectedItemId, document.getElementById('selected-item-name').innerText);
         }} else {{
-          showAlert('booking-alert', 'Conflict Error: ' + (data.detail || 'Slot Conflict'), 'rose');
+          showAlert('booking-alert', 'Conflict / Error: ' + (data.detail || 'Request Conflict'), 'rose');
         }}
       }} catch (err) {{
-        showAlert('booking-alert', 'Network error during reservation', 'rose');
+        showAlert('booking-alert', 'Network error during request', 'rose');
       }}
     }}
 
@@ -621,13 +625,16 @@ def index_page():
         return;
       }}
       container.innerHTML = data.map(a => `
-        <div class="py-2.5 flex justify-between items-center">
+        <div class="py-3 flex justify-between items-center">
           <div>
-            <span class="font-medium text-white">${{a.item_name}}</span>
-            <span class="text-xs text-slate-400 ml-2">${{a.slot_time}}</span>
-            <span class="text-xs px-2 py-0.5 rounded ml-2 ${{a.status === 'ACTIVE' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-slate-800 text-slate-400'}}">${{a.status}}</span>
+            <div class="font-semibold text-white text-sm">${{a.item_name}}</div>
+            <div class="text-xs text-cyan-300 font-mono mt-0.5">${{a.slot_time}}</div>
+            ${{a.notes ? `<div class="text-xs text-slate-300 mt-1 italic">${{a.notes}}</div>` : ''}}
+            <div class="mt-1.5">
+              <span class="text-[10px] font-mono uppercase px-2 py-0.5 rounded ${{a.status === 'ACTIVE' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-slate-800 text-slate-400'}}">${{a.status === 'ACTIVE' ? 'SUBMITTED (VERIFIED)' : a.status}}</span>
+            </div>
           </div>
-          ${{a.status === 'ACTIVE' ? `<button onclick="cancelAlloc(${{a.id}})" class="text-xs bg-rose-900/50 hover:bg-rose-800 border border-rose-700 text-rose-200 px-2.5 py-1 rounded">{spec.action_reverse.capitalize()}</button>` : ''}}
+          ${{a.status === 'ACTIVE' ? `<button onclick="cancelAlloc(${{a.id}})" class="text-xs bg-rose-950/70 hover:bg-rose-900 border border-rose-800 text-rose-300 px-3 py-1.5 rounded transition font-medium">{spec.action_reverse.capitalize()}</button>` : ''}}
         </div>
       `).join('');
     }}

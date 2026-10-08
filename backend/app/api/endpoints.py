@@ -20,6 +20,7 @@ from app.schemas.project import (
 from app.orchestrator.orchestrator import SwarmOrchestrator
 from app.orchestrator.events import event_broadcaster
 from app.deployment.manager import DeploymentManager
+from app.execution.domain_analyzer import analyze_user_prompt
 
 router = APIRouter()
 
@@ -60,6 +61,7 @@ def health_check():
 
 @router.post("/projects", response_model=ProjectResponse, status_code=201)
 def create_project(data: ProjectCreate, db: Session = Depends(get_db)):
+    spec = analyze_user_prompt(f"{data.name} {data.requirement}")
     proj = Project(
         name=data.name,
         raw_requirement=data.requirement,
@@ -69,7 +71,7 @@ def create_project(data: ProjectCreate, db: Session = Depends(get_db)):
         autonomy_level=data.autonomy_level,
         is_demo_mode=data.is_demo_mode,
         llm_provider=data.llm_provider,
-        domain="Healthcare" if ("hospital" in data.requirement.lower() or "patient" in data.requirement.lower()) else "Enterprise"
+        domain=spec.domain
     )
     db.add(proj)
     db.commit()

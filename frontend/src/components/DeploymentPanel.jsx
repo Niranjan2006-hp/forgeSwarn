@@ -109,7 +109,7 @@ export default function DeploymentPanel({ project, deployment = [] }) {
         <div className="h-[600px] w-full bg-slate-950">
           <iframe
             src={appUrl}
-            title="Generated Hospital Application"
+            title={project?.name || "Generated Staging Application"}
             className="w-full h-full border-none"
             sandbox="allow-scripts allow-same-origin allow-forms"
           />

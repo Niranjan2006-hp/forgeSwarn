@@ -126,8 +126,9 @@ class SwarmOrchestrator:
         await asyncio.sleep(0.6)
 
         structured = await self.llm.analyze_requirements(self.project.raw_requirement)
-        
-        # Save structured requirements to DB
+        if structured.get("domain"):
+            self.project.domain = structured["domain"]
+            self.db.commit()
         for fr in structured.get("functional_requirements", []):
             req = Requirement(
                 project_id=self.project.id,

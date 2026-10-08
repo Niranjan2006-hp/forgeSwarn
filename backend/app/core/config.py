@@ -10,7 +10,7 @@ class Settings(BaseModel):
     VERSION: str = "1.0.0"
     API_PREFIX: str = "/api"
     HOST: str = os.getenv("HOST", "0.0.0.0")
-    PORT: int = int(os.getenv("PORT", "8000"))
+    PORT: int = int(os.getenv("PORT", "8002"))
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
     DATABASE_URL: str = os.getenv("DATABASE_URL", f"sqlite:///{DEFAULT_DB_PATH}")

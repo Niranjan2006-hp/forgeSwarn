@@ -53,16 +53,16 @@ class MockLLMProvider(BaseLLMProvider):
             "summary": f"Full-lifecycle {spec.domain} application ensuring absolute transactional consistency for {spec.item_plural}.",
             "functional_requirements": [
                 {"code": "FR-001", "title": "User Registration & Authentication", "description": "Users can register with name, email, password and authenticate with JWT tokens.", "priority": "CRITICAL"},
-                {"code": "FR-002", "title": f"{spec.item_plural.capitalize()} Directory Browsing", "description": f"Users can list all {spec.item_plural} with their {spec.item_attr1_name} and {spec.item_attr2_name}.", "priority": "HIGH"},
-                {"code": "FR-003", "title": "Availability Inspection", "description": f"Users can view real-time available status for any selected {spec.item_singular}.", "priority": "HIGH"},
-                {"code": "FR-004", "title": f"{spec.action_name.capitalize()} Resource", "description": f"Users can {spec.action_name} an available {spec.item_singular} for a specified time or allocation slot.", "priority": "CRITICAL"},
-                {"code": "FR-005", "title": f"{spec.action_reverse.capitalize()} Allocation", "description": f"Users can {spec.action_reverse} their active {spec.action_past} {spec.item_plural}, immediately releasing availability.", "priority": "HIGH"},
-                {"code": "FR-006", "title": f"User {spec.action_past.capitalize()} History", "description": f"Users can view their complete historical and active {spec.action_past} records.", "priority": "MEDIUM"}
+                {"code": "FR-002", "title": f"{spec.catalog_title}", "description": f"Users can browse all {spec.item_plural} with their {spec.item_attr1_name} and {spec.item_attr2_name}.", "priority": "HIGH"},
+                {"code": "FR-003", "title": f"{spec.options_label}", "description": f"Users can inspect available options and real-time status for any selected {spec.item_singular}.", "priority": "HIGH"},
+                {"code": "FR-004", "title": f"{spec.action_label}", "description": f"Users can perform {spec.action_name} for an available {spec.item_singular} by submitting their {spec.primary_input_label}.", "priority": "CRITICAL"},
+                {"code": "FR-005", "title": f"{spec.action_reverse.capitalize()} {spec.item_singular.capitalize()}", "description": f"Users can {spec.action_reverse} their active {spec.action_past} {spec.item_plural}, immediately releasing capacity.", "priority": "HIGH"},
+                {"code": "FR-006", "title": f"{spec.record_title}", "description": f"Users can view their complete historical and active {spec.action_past} records with full audit traceability.", "priority": "MEDIUM"}
             ],
             "business_rules": [
                 {"code": "BR-001", "title": spec.concurrency_invariant_title, "description": spec.concurrency_rule, "priority": "CRITICAL"},
-                {"code": "BR-002", "title": "Historical Integrity Rule", "description": "Allocations cannot be made for historical or invalid timestamps.", "priority": "HIGH"},
-                {"code": "BR-003", "title": "Referential Integrity Invariant", "description": f"Every allocation record must link to an authenticated user and valid {spec.item_singular}.", "priority": "HIGH"}
+                {"code": "BR-002", "title": "Historical Integrity Rule", "description": "Transactions and submissions cannot be made with invalid or expired options.", "priority": "HIGH"},
+                {"code": "BR-003", "title": "Referential Integrity Invariant", "description": f"Every record must link to an authenticated user and valid {spec.item_singular}.", "priority": "HIGH"}
             ],
             "security_requirements": [
                 {"code": "SEC-001", "title": "Route Authentication Guard", "description": f"Mutating endpoints for {spec.action_name} and {spec.action_reverse} require valid JWT bearer tokens.", "priority": "CRITICAL"},
@@ -71,13 +71,13 @@ class MockLLMProvider(BaseLLMProvider):
             ],
             "non_functional_requirements": [
                 {"code": "NFR-001", "title": "Low Latency API", "description": "Endpoints must respond under 100ms under standard operational load.", "priority": "MEDIUM"},
-                {"code": "NFR-002", "title": "ACID Transactional Compliance", "description": f"{spec.action_name.capitalize()} operations must execute with strict ACID isolation.", "priority": "CRITICAL"}
+                {"code": "NFR-002", "title": "ACID Transactional Compliance", "description": f"{spec.action_label} operations must execute with strict ACID isolation.", "priority": "CRITICAL"}
             ],
             "entities": [
                 "User",
                 spec.item_singular.capitalize(),
-                f"{spec.item_singular.capitalize()}Allocation",
-                "AvailabilitySlot"
+                f"{spec.item_singular.capitalize()}Record",
+                "AuditLog"
             ]
         }
 

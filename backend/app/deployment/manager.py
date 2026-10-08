@@ -14,7 +14,7 @@ class DeploymentManager:
     _running_processes: Dict[str, subprocess.Popen] = {}
 
     @classmethod
-    def get_free_port(cls, default_port: int = 8005) -> int:
+    def get_free_port(cls, default_port: int = 8010) -> int:
         for port in range(default_port, default_port + 100):
             try:
                 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -33,7 +33,7 @@ class DeploymentManager:
         # Stop any existing process for this project
         cls.stop_deployment(project_id)
 
-        port = cls.get_free_port(8005)
+        port = cls.get_free_port(8010)
         workspace_dir = str(workspace.root_path.resolve())
         log_file_path = workspace.root_path / "staging_server.log"
         log_f = open(log_file_path, "w", encoding="utf-8")

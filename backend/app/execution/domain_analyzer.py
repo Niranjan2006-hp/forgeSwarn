@@ -15,7 +15,16 @@ class DomainSpec:
         item_attr2_name: str,
         seed_items: List[Dict[str, str]],
         concurrency_rule: str,
-        concurrency_invariant_title: str
+        concurrency_invariant_title: str,
+        ui_type: str = "GENERIC",
+        action_label: str = "Submit",
+        record_title: str = "My Submitted Records",
+        catalog_title: str = "Available Catalog",
+        primary_input_label: str = "Notes / Specification",
+        primary_input_placeholder: str = "Enter details...",
+        selection_label: str = "Selected Item",
+        options_label: str = "Select Option / Cohort",
+        seed_options: List[str] = None
     ):
         self.project_name = project_name
         self.domain = domain
@@ -29,21 +38,42 @@ class DomainSpec:
         self.seed_items = seed_items
         self.concurrency_rule = concurrency_rule
         self.concurrency_invariant_title = concurrency_invariant_title
+        self.ui_type = ui_type
+        self.action_label = action_label
+        self.record_title = record_title
+        self.catalog_title = catalog_title
+        self.primary_input_label = primary_input_label
+        self.primary_input_placeholder = primary_input_placeholder
+        self.selection_label = selection_label
+        self.options_label = options_label
+        self.seed_options = seed_options or ["Standard Allocation Tier 1", "Standard Allocation Tier 2", "Standard Allocation Tier 3"]
 
 def analyze_user_prompt(prompt: str) -> DomainSpec:
     """
     Dynamically analyzes any software requirement prompt and synthesizes
-    the domain entities, actions, data models, and business rules for diverse projects.
-    Uses exact keyword frequency scoring so the most relevant domain is chosen.
+    the domain entities, actions, data models, business rules, and UI archetype.
+    Robust against typos and tailored for specific engineering domains.
     """
-    p_lower = prompt.lower()
+    p_clean = prompt.lower()
+    # Normalize common spelling variations and typos
+    p_clean = re.sub(r'\bstusent\b', 'student', p_clean)
+    p_clean = re.sub(r'\breuirment\b', 'requirement', p_clean)
+    p_clean = re.sub(r'\battandance\b', 'attendance', p_clean)
+    p_clean = re.sub(r'\battendence\b', 'attendance', p_clean)
+    p_clean = re.sub(r'\bmanegement\b', 'management', p_clean)
+    p_clean = re.sub(r'\bhospitl\b', 'hospital', p_clean)
+    p_clean = re.sub(r'\bdocter\b', 'doctor', p_clean)
+    p_clean = re.sub(r'\bvehical\b', 'vehicle', p_clean)
+    p_clean = re.sub(r'\bintrenship\b', 'internship', p_clean)
 
     domain_keywords = {
+        "internship": ["internship", "internships", "intern", "interns", "student internship", "career", "placement", "recruitment", "trainee", "trainees", "apprentice", "apprenticeship", "job opening", "internship opportunities", "manage applications", "apply for internships"],
         "healthcare": ["hospital", "doctor", "doctors", "patient", "patients", "clinic", "medical", "appointment", "appointments", "dentist", "physician", "health"],
         "education": ["course", "courses", "class", "classes", "enroll", "enrollment", "enrollments", "student", "students", "instructor", "instructors", "curriculum", "syllabus", "academy", "university", "faculty", "tutoring"],
+        "ecommerce": ["inventory", "product", "products", "ecommerce", "warehouse", "stock", "store", "order", "orders", "shop", "checkout", "sku", "oversold", "retail", "purchase", "purchases", "cart", "catalog"],
+        "task": ["task", "tasks", "attendance", "employee", "employees", "shift", "shifts", "project", "projects", "kanban", "ticket", "tickets", "issue", "issues", "timesheet", "work", "staff", "assignee"],
         "library": ["library", "book", "books", "borrow", "borrowed", "lending", "reading", "isbn", "circulation", "author", "authors"],
         "automotive": ["car", "cars", "vehicle", "vehicles", "rental", "fleet", "drive", "automobile", "truck", "suv"],
-        "ecommerce": ["inventory", "product", "products", "ecommerce", "warehouse", "stock", "store", "order", "orders", "shop", "checkout", "sku", "oversold"],
         "hospitality": ["hotel", "room", "rooms", "stay", "guest", "guests", "resort", "suite", "suites", "motel", "lodging"],
         "fintech": ["bank", "banking", "fintech", "wallet", "ledger", "account", "accounts", "transfer", "transfers", "deposit", "money", "payment", "payments", "balance", "overdraft"],
         "restaurant": ["restaurant", "table", "tables", "dine", "dining", "bistro", "cafe", "food", "chef", "seating"],
@@ -52,12 +82,52 @@ def analyze_user_prompt(prompt: str) -> DomainSpec:
         "fitness": ["gym", "fitness", "workout", "workouts", "trainer", "trainers", "yoga", "crossfit", "pilates", "studio"]
     }
 
-    scores = {d: sum(len(re.findall(rf"\b{re.escape(k)}\b", p_lower)) for k in kws) for d, kws in domain_keywords.items()}
+    scores = {}
+    for d, kws in domain_keywords.items():
+        total_hits = 0
+        for k in kws:
+            total_hits += len(re.findall(rf"\b{re.escape(k)}\b", p_clean))
+        scores[d] = total_hits
+
     sorted_domains = sorted(scores.items(), key=lambda x: x[1], reverse=True)
     best_domain, top_score = sorted_domains[0] if sorted_domains else ("generic", 0)
 
     if top_score > 0:
-        if best_domain == "healthcare":
+        if best_domain == "internship":
+            return DomainSpec(
+                project_name="Student Internship & Career Placement Portal",
+                domain="Higher Education & Career Services",
+                item_singular="internship",
+                item_plural="internships",
+                action_name="apply",
+                action_past="applied",
+                action_reverse="withdraw",
+                item_attr1_name="company",
+                item_attr2_name="role_details",
+                seed_items=[
+                    {"name": "Cloud Systems & Infrastructure Intern", "attr1": "Google Cloud", "attr2": "Full-Time Summer • $52/hr • Mountain View / Remote"},
+                    {"name": "Autonomous AI Research Intern", "attr1": "DeepMind", "attr2": "Research Track • $55/hr • London / Mountain View"},
+                    {"name": "Full-Stack Web Engineering Intern", "attr1": "Vercel & Next.js", "attr2": "Software Team • $48/hr • Remote"},
+                    {"name": "Security & Cryptography Intern", "attr1": "Cloudflare", "attr2": "Systems Track • $50/hr • Austin / Remote"}
+                ],
+                concurrency_rule="A student cannot submit duplicate active applications for the same internship opening simultaneously, and an opening cannot exceed its maximum applicant quota under concurrent submissions.",
+                concurrency_invariant_title="Duplicate Application & Candidate Quota Invariant",
+                ui_type="APPLICATION",
+                action_label="Submit Application",
+                record_title="My Submitted Internship Applications",
+                catalog_title="Available Internship Opportunities & Job Postings",
+                primary_input_label="Student Profile, Resume / Portfolio URL & Statement of Interest",
+                primary_input_placeholder="CS Senior (GPA 3.8) • github.com/student • Excited to contribute to cloud distributed systems!",
+                selection_label="Selected Internship Opportunity",
+                options_label="Select Internship Cohort / Term",
+                seed_options=[
+                    "Summer 2026 Cohort (Full-Time • 12 Weeks)",
+                    "Fall 2026 Cohort (Co-op • 16 Weeks)",
+                    "Spring 2027 Cohort (Part-Time • 12 Weeks)"
+                ]
+            )
+
+        elif best_domain == "healthcare":
             return DomainSpec(
                 project_name="Hospital Appointment Management System",
                 domain="Healthcare",
@@ -75,70 +145,21 @@ def analyze_user_prompt(prompt: str) -> DomainSpec:
                     {"name": "Dr. James Wilson", "attr1": "Orthopedics", "attr2": "Suite 204"}
                 ],
                 concurrency_rule="A doctor must never have two patients booked for the same time slot.",
-                concurrency_invariant_title="Zero Double-Booking Concurrency Invariant"
-            )
-
-        elif best_domain == "education":
-            return DomainSpec(
-                project_name="Class Enrollment & Registration Platform",
-                domain="Higher Education",
-                item_singular="course",
-                item_plural="courses",
-                action_name="enroll",
-                action_past="enrolled",
-                action_reverse="drop",
-                item_attr1_name="instructor",
-                item_attr2_name="schedule",
-                seed_items=[
-                    {"name": "CS101: Distributed Systems", "attr1": "Prof. David Patterson", "attr2": "Mon/Wed 10:00 AM"},
-                    {"name": "AI202: Autonomous Agents", "attr1": "Prof. Andrew Ng", "attr2": "Tue/Thu 02:00 PM"},
-                    {"name": "MATH301: Cryptography & Security", "attr1": "Prof. Ronald Rivest", "attr2": "Mon/Fri 11:30 AM"},
-                    {"name": "SE405: Software Architecture", "attr1": "Prof. Martin Fowler", "attr2": "Wed/Fri 03:00 PM"}
-                ],
-                concurrency_rule="A course section must never exceed capacity or permit duplicate enrollment seats under concurrent requests.",
-                concurrency_invariant_title="Seat Quota & Uniqueness Invariant"
-            )
-
-        elif best_domain == "library":
-            return DomainSpec(
-                project_name="Library Book Lending & Circulation System",
-                domain="Education & Library Science",
-                item_singular="book",
-                item_plural="books",
-                action_name="borrow",
-                action_past="borrowed",
-                action_reverse="return",
-                item_attr1_name="author",
-                item_attr2_name="isbn",
-                seed_items=[
-                    {"name": "Clean Code", "attr1": "Robert C. Martin", "attr2": "978-0132350884"},
-                    {"name": "Designing Data-Intensive Applications", "attr1": "Martin Kleppmann", "attr2": "978-1449373320"},
-                    {"name": "The Pragmatic Programmer", "attr1": "David Thomas, Andrew Hunt", "attr2": "978-0135957059"},
-                    {"name": "Introduction to Algorithms", "attr1": "Thomas H. Cormen", "attr2": "978-0262033848"}
-                ],
-                concurrency_rule="A book copy must never be loaned to two members at the same time.",
-                concurrency_invariant_title="Single Borrower Active Copy Invariant"
-            )
-
-        elif best_domain == "automotive":
-            return DomainSpec(
-                project_name="Fleet Vehicle Rental & Reservation System",
-                domain="Automotive & Transportation",
-                item_singular="vehicle",
-                item_plural="vehicles",
-                action_name="reserve",
-                action_past="reserved",
-                action_reverse="cancel",
-                item_attr1_name="model",
-                item_attr2_name="license_plate",
-                seed_items=[
-                    {"name": "Tesla Model 3 Dual Motor", "attr1": "Electric Sedan", "attr2": "CA-7EV901"},
-                    {"name": "BMW 330i M-Sport", "attr1": "Executive Sedan", "attr2": "NY-4BM202"},
-                    {"name": "Toyota RAV4 Hybrid", "attr1": "Compact SUV", "attr2": "TX-9TR441"},
-                    {"name": "Ford F-150 Lightning", "attr1": "Electric Pickup", "attr2": "WA-3FL819"}
-                ],
-                concurrency_rule="A vehicle must never be reserved by two drivers for overlapping reservation periods.",
-                concurrency_invariant_title="Exclusive Vehicle Lease Invariant"
+                concurrency_invariant_title="Zero Double-Booking Concurrency Invariant",
+                ui_type="RESERVATION",
+                action_label="Confirm Appointment Booking",
+                record_title="My Scheduled Medical Appointments",
+                catalog_title="Specialist Physicians & Doctors Directory",
+                primary_input_label="Consultation Reason & Chief Symptoms",
+                primary_input_placeholder="Routine cardiovascular follow-up checkup",
+                selection_label="Selected Physician",
+                options_label="Select Consultation Time Slot",
+                seed_options=[
+                    "2026-10-15 Slot 1 (09:00 AM)",
+                    "2026-10-15 Slot 2 (10:30 AM)",
+                    "2026-10-15 Slot 3 (02:00 PM)",
+                    "2026-10-15 Slot 4 (03:30 PM)"
+                ]
             )
 
         elif best_domain == "ecommerce":
@@ -153,34 +174,94 @@ def analyze_user_prompt(prompt: str) -> DomainSpec:
                 item_attr1_name="category",
                 item_attr2_name="sku",
                 seed_items=[
-                    {"name": "Custom Mechanical Keyboard", "attr1": "Peripherals", "attr2": "SKU-KB-880"},
-                    {"name": "Ultra-Wide 34-inch OLED Monitor", "attr1": "Displays", "attr2": "SKU-MON-34"},
-                    {"name": "Ergonomic Mesh Task Chair", "attr1": "Office Furniture", "attr2": "SKU-CHR-01"},
-                    {"name": "Active Noise Canceling Headphones", "attr1": "Audio", "attr2": "SKU-AUD-99"}
+                    {"name": "Custom Mechanical Keyboard", "attr1": "Peripherals", "attr2": "SKU-KB-880 • $149"},
+                    {"name": "Ultra-Wide 34-inch OLED Monitor", "attr1": "Displays", "attr2": "SKU-MON-34 • $799"},
+                    {"name": "Ergonomic Mesh Task Chair", "attr1": "Office Furniture", "attr2": "SKU-CHR-01 • $320"},
+                    {"name": "Active Noise Canceling Headphones", "attr1": "Audio", "attr2": "SKU-AUD-99 • $249"}
                 ],
-                concurrency_rule="A product unit must never be oversold under simultaneous concurrent orders.",
-                concurrency_invariant_title="Zero Overselling Inventory Invariant"
+                concurrency_rule="A product unit must never be oversold or decremented below zero under simultaneous concurrent orders.",
+                concurrency_invariant_title="Zero Overselling Inventory Invariant",
+                ui_type="ORDER",
+                action_label="Place & Confirm Order",
+                record_title="My Orders & Shipping History",
+                catalog_title="Product Catalog & In-Stock Inventory",
+                primary_input_label="Order Quantity & Shipping Delivery Address",
+                primary_input_placeholder="Qty: 1 • 742 Evergreen Terrace, Springfield, OR 97477",
+                selection_label="Selected Product Item",
+                options_label="Select Shipping Speed",
+                seed_options=[
+                    "Standard Ground Delivery (3-5 Days)",
+                    "Express Priority Air Dispatch (1-2 Days)",
+                    "Same-Day Urgent Courier"
+                ]
             )
 
-        elif best_domain == "hospitality":
+        elif best_domain == "education":
             return DomainSpec(
-                project_name="Hotel Room Reservation System",
-                domain="Hospitality",
-                item_singular="room",
-                item_plural="rooms",
-                action_name="reserve",
-                action_past="reserved",
-                action_reverse="cancel",
-                item_attr1_name="room_type",
-                item_attr2_name="floor",
+                project_name="Class Enrollment & Course Registration Platform",
+                domain="Higher Education",
+                item_singular="course",
+                item_plural="courses",
+                action_name="enroll",
+                action_past="enrolled",
+                action_reverse="drop",
+                item_attr1_name="instructor",
+                item_attr2_name="schedule",
                 seed_items=[
-                    {"name": "Presidential Oceanfront Suite", "attr1": "Luxury King", "attr2": "Floor 12"},
-                    {"name": "Deluxe Executive Room", "attr1": "Double Queen", "attr2": "Floor 8"},
-                    {"name": "Skyline Penthouse", "attr1": "Master Suite", "attr2": "Floor 15"},
-                    {"name": "Corner Studio Loft", "attr1": "Single King", "attr2": "Floor 5"}
+                    {"name": "CS101: Distributed Systems", "attr1": "Prof. David Patterson", "attr2": "Mon/Wed 10:00 AM • 4 Credits"},
+                    {"name": "AI202: Autonomous Agents", "attr1": "Prof. Andrew Ng", "attr2": "Tue/Thu 02:00 PM • 3 Credits"},
+                    {"name": "MATH301: Cryptography & Security", "attr1": "Prof. Ronald Rivest", "attr2": "Mon/Fri 11:30 AM • 4 Credits"},
+                    {"name": "SE405: Software Architecture", "attr1": "Prof. Martin Fowler", "attr2": "Wed/Fri 03:00 PM • 3 Credits"}
                 ],
-                concurrency_rule="A room must never be reserved by two guests for the same date range.",
-                concurrency_invariant_title="Single Occupant Room Allocation Invariant"
+                concurrency_rule="A course section must never exceed seat capacity or permit duplicate enrollment seats under concurrent requests.",
+                concurrency_invariant_title="Seat Quota & Uniqueness Invariant",
+                ui_type="ENROLLMENT",
+                action_label="Register & Enroll in Course",
+                record_title="My Enrolled Courses & Study Plan",
+                catalog_title="Academic Course Catalog & Class Sections",
+                primary_input_label="Student ID, Degree Major & Academic Standing",
+                primary_input_placeholder="Student ID: STU-8921 • B.S. Computer Science • Senior",
+                selection_label="Selected Course Offering",
+                options_label="Select Section & Schedule",
+                seed_options=[
+                    "Section 01 (Mon/Wed 10:00 AM - In Person)",
+                    "Section 02 (Tue/Thu 02:00 PM - In Person)",
+                    "Section 03 (Mon/Fri 11:30 AM - Hybrid)"
+                ]
+            )
+
+        elif best_domain == "task":
+            return DomainSpec(
+                project_name="Team Task & Attendance Operations System",
+                domain="Operations & Workforce Management",
+                item_singular="task",
+                item_plural="tasks",
+                action_name="claim",
+                action_past="claimed",
+                action_reverse="release",
+                item_attr1_name="team",
+                item_attr2_name="priority",
+                seed_items=[
+                    {"name": "Core Authentication Gateway Token Refresh", "attr1": "Backend Infrastructure", "attr2": "Priority: CRITICAL"},
+                    {"name": "Real-Time Student Application Pipeline Sync", "attr1": "Product Engineering", "attr2": "Priority: HIGH"},
+                    {"name": "Automated Shift Attendance Verification", "attr1": "Operations Team", "attr2": "Priority: MEDIUM"},
+                    {"name": "Database ACID Index Optimization", "attr1": "Data Reliability", "attr2": "Priority: HIGH"}
+                ],
+                concurrency_rule="A task or shift cannot be concurrently claimed or modified by multiple team members under simultaneous race conditions.",
+                concurrency_invariant_title="Atomic Task Assignment Invariant",
+                ui_type="TASK",
+                action_label="Claim & Assign Work Item",
+                record_title="My Assigned Work Items & Tickets",
+                catalog_title="Active Sprint Work Items & Tasks",
+                primary_input_label="Assignee Hours Estimate, Notes & Implementation Approach",
+                primary_input_placeholder="Assignee: Lead Engineer • Est: 4h • Sprint 14 Milestone",
+                selection_label="Selected Work Item",
+                options_label="Select Sprint Allocation Queue",
+                seed_options=[
+                    "Sprint 14 Queue (Active Milestone)",
+                    "Sprint 15 Queue (Upcoming Backlog)",
+                    "Hotfix & Escalation Track"
+                ]
             )
 
         elif best_domain == "fintech":
@@ -201,96 +282,93 @@ def analyze_user_prompt(prompt: str) -> DomainSpec:
                     {"name": "Institutional Liquidity Pool", "attr1": "Commercial", "attr2": "ROUT-004-TYO"}
                 ],
                 concurrency_rule="An account balance must never overdraft or permit conflicting simultaneous debit allocations.",
-                concurrency_invariant_title="Non-Negative Balance & Double-Spend Invariant"
+                concurrency_invariant_title="Non-Negative Balance & Double-Spend Invariant",
+                ui_type="FINANCE",
+                action_label="Execute Balance Transfer",
+                record_title="Settlement Ledger & Transfer History",
+                catalog_title="Destination Accounts & Corporate Ledgers",
+                primary_input_label="Transfer Amount ($ USD) & Settlement Memo",
+                primary_input_placeholder="$1,500.00 USD • Invoice #9021 Vendor Settlement",
+                selection_label="Selected Settlement Account",
+                options_label="Select Settlement Method",
+                seed_options=[
+                    "Instant ACH Settlement (Real-Time)",
+                    "Wire Transfer Express (Gross Settlement)",
+                    "Scheduled Batch Liquidity Clear"
+                ]
             )
 
-        elif best_domain == "restaurant":
+        elif best_domain == "automotive":
             return DomainSpec(
-                project_name="Restaurant Dining & Table Reservation System",
-                domain="Food & Hospitality",
-                item_singular="table",
-                item_plural="tables",
+                project_name="Fleet Vehicle Rental & Reservation System",
+                domain="Automotive & Transportation",
+                item_singular="vehicle",
+                item_plural="vehicles",
                 action_name="reserve",
                 action_past="reserved",
                 action_reverse="cancel",
-                item_attr1_name="section",
-                item_attr2_name="capacity",
+                item_attr1_name="model",
+                item_attr2_name="license_plate",
                 seed_items=[
-                    {"name": "Terrace View Table 12", "attr1": "Outdoor Garden", "attr2": "4 Guests"},
-                    {"name": "Private Dining Suite A", "attr1": "VIP Salon", "attr2": "8 Guests"},
-                    {"name": "Chef Counter High-Top 4", "attr1": "Open Kitchen", "attr2": "2 Guests"},
-                    {"name": "Main Atrium Table 7", "attr1": "Main Dining Hall", "attr2": "6 Guests"}
+                    {"name": "Tesla Model 3 Dual Motor", "attr1": "Electric Sedan", "attr2": "CA-7EV901"},
+                    {"name": "BMW 330i M-Sport", "attr1": "Executive Sedan", "attr2": "NY-4BM202"},
+                    {"name": "Toyota RAV4 Hybrid", "attr1": "Compact SUV", "attr2": "TX-9TR441"},
+                    {"name": "Ford F-150 Lightning", "attr1": "Electric Pickup", "attr2": "WA-3FL819"}
                 ],
-                concurrency_rule="A dining table must never have two guest parties seated for the same seating slot.",
-                concurrency_invariant_title="Zero Double-Seating Table Invariant"
+                concurrency_rule="A vehicle must never be reserved by two drivers for overlapping reservation periods.",
+                concurrency_invariant_title="Exclusive Vehicle Lease Invariant",
+                ui_type="RESERVATION",
+                action_label="Confirm Vehicle Reservation",
+                record_title="My Active Vehicle Rentals",
+                catalog_title="Fleet Vehicles Available for Reservation",
+                primary_input_label="Pickup Date, Rental Duration & Driver License No",
+                primary_input_placeholder="Pickup: 2026-10-15 • 3 Days • DL: C4819201",
+                selection_label="Selected Fleet Vehicle",
+                options_label="Select Rental Time Window",
+                seed_options=[
+                    "Weekend Getaway (Fri 09:00 AM - Sun 06:00 PM)",
+                    "Weekly Business Commute (Mon - Fri)",
+                    "Daily Standard Rental (24h Window)"
+                ]
             )
 
-        elif best_domain == "aviation":
+        elif best_domain == "library":
             return DomainSpec(
-                project_name="Airline Flight & Seat Reservation System",
-                domain="Aviation & Travel",
-                item_singular="flight",
-                item_plural="flights",
-                action_name="book",
-                action_past="booked",
-                action_reverse="cancel",
-                item_attr1_name="route",
-                item_attr2_name="aircraft",
+                project_name="Library Book Lending & Circulation System",
+                domain="Education & Library Science",
+                item_singular="book",
+                item_plural="books",
+                action_name="borrow",
+                action_past="borrowed",
+                action_reverse="return",
+                item_attr1_name="author",
+                item_attr2_name="isbn",
                 seed_items=[
-                    {"name": "Flight FS-101 (SFO → LHR)", "attr1": "Transatlantic Direct", "attr2": "Boeing 787-9"},
-                    {"name": "Flight FS-204 (JFK → NRT)", "attr1": "Pacific Express", "attr2": "Airbus A350-1000"},
-                    {"name": "Flight FS-310 (LAX → SYD)", "attr1": "Oceanic Nonstop", "attr2": "Boeing 777-300ER"},
-                    {"name": "Flight FS-402 (ORD → FRA)", "attr1": "Continental Route", "attr2": "Airbus A330neo"}
+                    {"name": "Clean Code", "attr1": "Robert C. Martin", "attr2": "978-0132350884"},
+                    {"name": "Designing Data-Intensive Applications", "attr1": "Martin Kleppmann", "attr2": "978-1449373320"},
+                    {"name": "The Pragmatic Programmer", "attr1": "David Thomas, Andrew Hunt", "attr2": "978-0135957059"},
+                    {"name": "Introduction to Algorithms", "attr1": "Thomas H. Cormen", "attr2": "978-0262033848"}
                 ],
-                concurrency_rule="A flight seat must never be issued to two passengers under concurrent booking requests.",
-                concurrency_invariant_title="Single Passenger Seat Invariant"
+                concurrency_rule="A book copy must never be loaned to two members at the same time.",
+                concurrency_invariant_title="Single Borrower Active Copy Invariant",
+                ui_type="LOAN",
+                action_label="Borrow Book Copy",
+                record_title="My Borrowed Books & Active Loans",
+                catalog_title="Library Catalog & Available Volumes",
+                primary_input_label="Member Card Number & Loan Purpose",
+                primary_input_placeholder="Member ID: LIB-49201 • Academic Research Loan",
+                selection_label="Selected Volume",
+                options_label="Select Loan Duration Period",
+                seed_options=[
+                    "Standard 14-Day Borrowing Period",
+                    "Extended 30-Day Research Loan",
+                    "Semester Course Reserve Loan"
+                ]
             )
 
-        elif best_domain == "realestate":
-            return DomainSpec(
-                project_name="Commercial & Residential Property Leasing System",
-                domain="Real Estate",
-                item_singular="property",
-                item_plural="properties",
-                action_name="lease",
-                action_past="leased",
-                action_reverse="terminate",
-                item_attr1_name="property_type",
-                item_attr2_name="address",
-                seed_items=[
-                    {"name": "Hudson Yards Sky Studio", "attr1": "Luxury High-Rise", "attr2": "500 W 33rd St, New York"},
-                    {"name": "Pacific Heights Townhouse", "attr1": "Multi-Family Historic", "attr2": "2400 Broadway, San Francisco"},
-                    {"name": "River North Creative Loft", "attr1": "Open Commercial Loft", "attr2": "410 N Wells, Chicago"},
-                    {"name": "SoHo Retail Flagship", "attr1": "Prime Commercial", "attr2": "92 Prince St, New York"}
-                ],
-                concurrency_rule="A property unit must never have overlapping active leases under simultaneous execution.",
-                concurrency_invariant_title="Exclusive Lease Agreement Invariant"
-            )
-
-        elif best_domain == "fitness":
-            return DomainSpec(
-                project_name="Fitness Studio & Personal Training Scheduler",
-                domain="Health & Fitness",
-                item_singular="session",
-                item_plural="sessions",
-                action_name="book",
-                action_past="booked",
-                action_reverse="cancel",
-                item_attr1_name="discipline",
-                item_attr2_name="coach",
-                seed_items=[
-                    {"name": "HIIT Athletic Conditioning", "attr1": "Cardio & Strength", "attr2": "Coach Sarah Jenkins"},
-                    {"name": "Ashtanga Core Vinyasa", "attr1": "Mobility Yoga", "attr2": "Guru Arjun Dev"},
-                    {"name": "Powerlifting Masterclass", "attr1": "Olympic Weightlifting", "attr2": "Coach Dmitri Volkov"},
-                    {"name": "Spin Endurance Interval", "attr1": "Cycle Studio", "attr2": "Coach Mia Zhang"}
-                ],
-                concurrency_rule="A training slot or class studio spot must never exceed safe member capacity.",
-                concurrency_invariant_title="Studio Capacity Limit Invariant"
-            )
-
-    # 13. Intelligent Generic NLP Extraction Fallback
+    # Intelligent Generic NLP Extraction Fallback
     words = [w for w in re.findall(r'\b[a-zA-Z]{3,}\b', prompt) if w.lower() not in [
-        "build", "application", "platform", "system", "user", "users", "where", "can", "the", "and", "must", "never", "two", "same", "for", "with", "that", "this", "from"
+        "build", "application", "platform", "system", "user", "users", "where", "can", "the", "and", "must", "never", "two", "same", "for", "with", "that", "this", "from", "allows", "manage"
     ]]
     primary_topic = words[0].capitalize() if words else "Resource"
     
@@ -311,5 +389,18 @@ def analyze_user_prompt(prompt: str) -> DomainSpec:
             {"name": f"{primary_topic} Delta Dynamic", "attr1": "Premium Cluster", "attr2": f"{primary_topic[:3].upper()}-004"}
         ],
         concurrency_rule=f"A {primary_topic.lower()} must never be concurrently claimed by two users for the same allocation slot.",
-        concurrency_invariant_title=f"Zero Conflict {primary_topic} Invariant"
+        concurrency_invariant_title=f"Zero Conflict {primary_topic} Invariant",
+        ui_type="GENERIC",
+        action_label=f"Confirm {primary_topic} Allocation",
+        record_title=f"My Active {primary_topic} Records",
+        catalog_title=f"Available {primary_topic} Catalog",
+        primary_input_label="Allocation Notes, Specification & Purpose",
+        primary_input_placeholder="Enter operational specification...",
+        selection_label=f"Selected {primary_topic}",
+        options_label="Select Allocation Option",
+        seed_options=[
+            "Tier 1 Allocation Window",
+            "Tier 2 Allocation Window",
+            "Tier 3 Allocation Window"
+        ]
     )
