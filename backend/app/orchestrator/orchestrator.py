@@ -259,8 +259,71 @@ class SwarmOrchestrator:
 
         spec: DomainSpec = analyze_user_prompt(self.project.raw_requirement)
 
-        # Artifact: architecture.md
-        arch_md = f"""# System Architecture: {self.project.name}
+        if spec.ui_type == "CALCULATOR":
+            arch_md = f"""# System Architecture: {self.project.name}
+
+## 1. Executive Summary
+High-precision, event-driven {spec.domain} platform featuring reactive LCD display, IEEE-754 precision compliance, persistent memory registers, and strict zero-division safety boundary protection.
+
+## 2. Component Topology
+- **Client Layer**: Responsive Single-Page Application with tactile virtual keypad, dual-line LCD screen, scientific drawer, and interactive calculation tape.
+- **Service Layer**: FastAPI REST service with AST-based safe mathematical expression parsing and injection mitigation.
+- **Data Persistence**: SQLAlchemy ORM with SQLite (development) tracking audit calculation tape and memory register states.
+- **Safety Boundary**: Zero-Division Safety Invariant (BR-001) preventing arithmetic runtime faults and server crashes.
+
+## 3. Mathematical Reliability & Security
+- Safe AST syntax tree traversal prohibiting arbitrary Python code execution.
+- High-precision rounding to eliminate floating-point representation anomalies.
+"""
+            self.db.add(Artifact(
+                project_id=self.project.id,
+                filename="architecture.md",
+                file_type="markdown",
+                content=arch_md,
+                created_by="Architect Agent"
+            ))
+
+            sql_schema = """-- Scientific & Standard Web Calculator Schema
+CREATE TABLE calculations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    expression VARCHAR(255) NOT NULL,
+    result VARCHAR(100) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE memory_registers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    register_name VARCHAR(50) DEFAULT 'M' UNIQUE,
+    value REAL DEFAULT 0.0,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+"""
+            self.db.add(Artifact(
+                project_id=self.project.id,
+                filename="database_schema.sql",
+                file_type="sql",
+                content=sql_schema,
+                created_by="Database Agent"
+            ))
+
+            decision = Decision(
+                project_id=self.project.id,
+                decision="Enforce AST Parsing and Defensive Zero-Division Safety Guard (BR-001)",
+                alternatives=["Native eval() with regex", "Third-party CAS library", "Sandboxed AST parser with zero-divisor check"],
+                reason="AST evaluation eliminates code injection risks while zero-divisor interception prevents unhandled ZeroDivisionError 500 crashes.",
+                participating_agents=["Chief Architect", "QA Engineer", "Security Engineer"],
+                confidence=0.99,
+                affected_components=["app/services/calculator_service.py", "app/main.py"]
+            )
+            self.db.add(decision)
+            self.db.commit()
+
+            await self.log_agent_message("Database Agent", "Configured SQLite tables for calculation audit tape and persistent memory registers.", category="PROPOSAL")
+            await self.log_agent_message("Backend Agent", "Formulating AST mathematical expression evaluation engine and zero-division safety guard.", category="PROPOSAL")
+            await self.emit_event("architecture.completed", "Architect Agent", "Architecture, SQL schema, and safety invariant boundaries formulated.", level="SUCCESS")
+        else:
+            # Artifact: architecture.md
+            arch_md = f"""# System Architecture: {self.project.name}
 
 ## 1. Executive Summary
 Multi-tiered, event-driven {spec.domain} platform ensuring ACID-compliant transactional consistency for {spec.item_plural}.
@@ -275,16 +338,16 @@ Multi-tiered, event-driven {spec.domain} platform ensuring ACID-compliant transa
 - Passwords cryptographically hashed via SHA-256 / bcrypt.
 - JWT Session tokens checked before any mutating allocation.
 """
-        self.db.add(Artifact(
-            project_id=self.project.id,
-            filename="architecture.md",
-            file_type="markdown",
-            content=arch_md,
-            created_by="Architect Agent"
-        ))
+            self.db.add(Artifact(
+                project_id=self.project.id,
+                filename="architecture.md",
+                file_type="markdown",
+                content=arch_md,
+                created_by="Architect Agent"
+            ))
 
-        # Artifact: database_schema.sql
-        sql_schema = f"""-- {spec.project_name} Schema
+            # Artifact: database_schema.sql
+            sql_schema = f"""-- {spec.project_name} Schema
 CREATE TABLE users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name VARCHAR(100) NOT NULL,
@@ -312,30 +375,30 @@ CREATE TABLE allocations (
     CONSTRAINT uix_{spec.item_singular}_slot UNIQUE ({spec.item_singular}_id, slot_time)
 );
 """
-        self.db.add(Artifact(
-            project_id=self.project.id,
-            filename="database_schema.sql",
-            file_type="sql",
-            content=sql_schema,
-            created_by="Database Agent"
-        ))
+            self.db.add(Artifact(
+                project_id=self.project.id,
+                filename="database_schema.sql",
+                file_type="sql",
+                content=sql_schema,
+                created_by="Database Agent"
+            ))
 
-        # Record Decision
-        decision = Decision(
-            project_id=self.project.id,
-            decision=f"Enforce Composite Unique Constraint and Atomic Locking on {spec.item_singular.capitalize()} Allocations",
-            alternatives=["Optimistic Concurrency Control", "Redis Distributed Lock", "Pessimistic Lock with Unique DB Constraint"],
-            reason=f"{spec.concurrency_rule} Database-level uniqueness provides an unbypassable safety invariant.",
-            participating_agents=["Chief Architect", "Database Engineer", "Backend Engineer"],
-            confidence=0.97,
-            affected_components=["app/models.py", "app/services/allocation_service.py"]
-        )
-        self.db.add(decision)
-        self.db.commit()
+            # Record Decision
+            decision = Decision(
+                project_id=self.project.id,
+                decision=f"Enforce Composite Unique Constraint and Atomic Locking on {spec.item_singular.capitalize()} Allocations",
+                alternatives=["Optimistic Concurrency Control", "Redis Distributed Lock", "Pessimistic Lock with Unique DB Constraint"],
+                reason=f"{spec.concurrency_rule} Database-level uniqueness provides an unbypassable safety invariant.",
+                participating_agents=["Chief Architect", "Database Engineer", "Backend Engineer"],
+                confidence=0.97,
+                affected_components=["app/models.py", "app/services/allocation_service.py"]
+            )
+            self.db.add(decision)
+            self.db.commit()
 
-        await self.log_agent_message("Database Agent", f"Recommend composite unique constraint on {spec.item_singular}_id + slot_time to guarantee BR-001 invariant.", category="PROPOSAL")
-        await self.log_agent_message("Backend Agent", f"Acknowledged. I will implement transactional {spec.action_name} logic.", category="PROPOSAL")
-        await self.emit_event("architecture.completed", "Architect Agent", "Architecture, SQL schema, and transactional boundaries formulated.", level="SUCCESS")
+            await self.log_agent_message("Database Agent", f"Recommend composite unique constraint on {spec.item_singular}_id + slot_time to guarantee BR-001 invariant.", category="PROPOSAL")
+            await self.log_agent_message("Backend Agent", f"Acknowledged. I will implement transactional {spec.action_name} logic.", category="PROPOSAL")
+            await self.emit_event("architecture.completed", "Architect Agent", "Architecture, SQL schema, and transactional boundaries formulated.", level="SUCCESS")
 
     async def step_develop_code(self):
         self.project.status = "DEVELOPING"
@@ -410,12 +473,24 @@ CREATE TABLE allocations (
         failed_tc = self.db.query(TestCase).filter(TestCase.project_id == self.project.id, TestCase.status == "FAILED").first()
         failed_info = {"test_id": failed_tc.test_id if failed_tc else "TC-BR-001-01"}
 
-        service_file = "app/services/allocation_service.py" if self.workspace.file_exists("app/services/allocation_service.py") else "app/services/booking_service.py"
+        if self.workspace.file_exists("app/services/calculator_service.py"):
+            service_file = "app/services/calculator_service.py"
+            test_logs = "AssertionError: BR-001 VIOLATION: ZeroDivisionError triggered during division evaluation without defensive HTTP 400 guard."
+            files_changed_list = [service_file]
+        elif self.workspace.file_exists("app/services/allocation_service.py"):
+            service_file = "app/services/allocation_service.py"
+            test_logs = "AssertionError: BR-001 VIOLATION: Expected 1 allocation success, got 2. Status codes: [201, 201]"
+            files_changed_list = [service_file, "app/models.py"]
+        else:
+            service_file = "app/services/booking_service.py"
+            test_logs = "AssertionError: BR-001 VIOLATION: Expected 1 booking success, got 2. Status codes: [201, 201]"
+            files_changed_list = [service_file, "app/models.py"]
+
         code_ctx = self.workspace.read_file(service_file) or ""
 
         diagnosis = await self.llm.diagnose_failure(
             failed_test=failed_info,
-            logs="AssertionError: BR-001 VIOLATION: Expected 1 allocation success, got 2. Status codes: [201, 201]",
+            logs=test_logs,
             code_context=code_ctx
         )
 
@@ -423,7 +498,7 @@ CREATE TABLE allocations (
             project_id=self.project.id,
             test_id=failed_info["test_id"],
             requirement_id="BR-001",
-            title=diagnosis.get("problem", "Double allocation race condition"),
+            title=diagnosis.get("problem", "Zero-division safety violation" if "calculator" in service_file else "Double allocation race condition"),
             severity=diagnosis.get("severity", "CRITICAL"),
             status="DIAGNOSED",
             root_cause=diagnosis.get("root_cause"),
@@ -435,7 +510,7 @@ CREATE TABLE allocations (
         self.db.add(bug)
         self.db.commit()
 
-        root_cause_msg = diagnosis.get("root_cause", f"TOCTOU race condition in {service_file}. Simultaneous requests both read item/slot as available before either committed.")
+        root_cause_msg = diagnosis.get("root_cause", f"Defect in {service_file}. Critical invariant assertion failed.")
         await self.log_agent_message(
             "Debugger Agent",
             f"Root cause identified: {root_cause_msg}",
@@ -447,10 +522,19 @@ CREATE TABLE allocations (
     async def step_repair_defect(self, diagnosis: Dict[str, Any]):
         self.project.status = "REPAIRING"
         self.db.commit()
-        await self.emit_event("repair.started", "Repair Agent", "Formulating surgical code fix: applying atomic locking and database constraint...")
+        await self.emit_event("repair.started", "Repair Agent", "Formulating surgical code fix: applying safety guards and invariant validation...")
         await asyncio.sleep(0.8)
 
-        service_file = "app/services/allocation_service.py" if self.workspace.file_exists("app/services/allocation_service.py") else "app/services/booking_service.py"
+        if self.workspace.file_exists("app/services/calculator_service.py"):
+            service_file = "app/services/calculator_service.py"
+            files_changed_list = [service_file]
+        elif self.workspace.file_exists("app/services/allocation_service.py"):
+            service_file = "app/services/allocation_service.py"
+            files_changed_list = [service_file, "app/models.py"]
+        else:
+            service_file = "app/services/booking_service.py"
+            files_changed_list = [service_file, "app/models.py"]
+
         repair_data = await self.llm.generate_repair(diagnosis, self.workspace.read_file(service_file) or "")
 
         # Apply surgical repair to workspace: regenerate with has_bug=False
@@ -460,9 +544,9 @@ CREATE TABLE allocations (
         repair_attempt = RepairAttempt(
             project_id=self.project.id,
             bug_id=bug.id if bug else "bug-001",
-            strategy=repair_data.get("strategy", "Atomic lock with uniqueness validation"),
+            strategy=repair_data.get("strategy", "Surgical defensive check and invariant validation"),
             diff=repair_data.get("diff"),
-            files_changed=[service_file, "app/models.py"],
+            files_changed=files_changed_list,
             tests_before="16 / 17 passed (94.1%)",
             tests_after="17 / 17 passed (100%)",
             success=True,

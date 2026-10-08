@@ -46,6 +46,40 @@ class MockLLMProvider(BaseLLMProvider):
 
     async def analyze_requirements(self, user_prompt: str) -> Dict[str, Any]:
         spec: DomainSpec = analyze_user_prompt(user_prompt)
+
+        if spec.ui_type == "CALCULATOR":
+            return {
+                "project_name": spec.project_name,
+                "domain": spec.domain,
+                "summary": "High-precision standard and scientific web calculator featuring responsive LCD display, full arithmetic and advanced functions, persistent memory registers, audit calculation tape, and rigorous zero-division boundary protection.",
+                "functional_requirements": [
+                    {"code": "FR-001", "title": "Standard Arithmetic Computation", "description": "Users can execute addition, subtraction, multiplication, and division with standard mathematical operator precedence.", "priority": "CRITICAL"},
+                    {"code": "FR-002", "title": "Scientific & Advanced Functions", "description": "Users can calculate square roots, powers/exponents, percentages, reciprocals, and sign toggles.", "priority": "HIGH"},
+                    {"code": "FR-003", "title": "High-Precision LCD Screen & Keypad", "description": "Responsive dual-line display showing real-time expression history, glowing LCD digits, and keyboard shortcuts.", "priority": "HIGH"},
+                    {"code": "FR-004", "title": "Memory Registers (M+, M-, MR, MC, MS)", "description": "Users can store, recall, increment, and reset accumulated numeric values across calculations.", "priority": "HIGH"},
+                    {"code": "FR-005", "title": "Audit Tape & Session History", "description": "Persistent audit tape of all evaluated calculations with timestamps, click-to-recall, and clear history.", "priority": "MEDIUM"},
+                    {"code": "FR-006", "title": "Input Editing & Entry Clearing", "description": "Support for backspace (DEL), clear entry (CE), and master reset (C) without corrupting calculation state.", "priority": "MEDIUM"}
+                ],
+                "business_rules": [
+                    {"code": "BR-001", "title": "Zero-Division Safety Invariant", "description": "A division operation with a divisor of zero must be trapped safely with HTTP 400 Bad Request and friendly UI error without application crash or unhandled 500 error.", "priority": "CRITICAL"},
+                    {"code": "BR-002", "title": "Floating-Point Precision Invariant", "description": "Calculations must avoid catastrophic floating point representation errors and round cleanly to 10 decimal digits.", "priority": "HIGH"},
+                    {"code": "BR-003", "title": "Memory Register State Integrity", "description": "Memory register operations must maintain state across operations until explicitly cleared.", "priority": "HIGH"}
+                ],
+                "security_requirements": [
+                    {"code": "SEC-001", "title": "Math Expression Injection Guard", "description": "Math expression evaluator must sanitize inputs and strictly reject code injection or unsafe Python builtins.", "priority": "CRITICAL"},
+                    {"code": "SEC-002", "title": "DoS & Exponential Explosion Defense", "description": "Expressions exceeding 255 characters or exponential explosion thresholds must be rejected safely.", "priority": "HIGH"},
+                    {"code": "SEC-003", "title": "Zero Hardcoded Secrets", "description": "No hardcoded keys or tokens in calculator service.", "priority": "HIGH"}
+                ],
+                "non_functional_requirements": [
+                    {"code": "NFR-001", "title": "Sub-20ms Evaluation Latency", "description": "Calculator endpoints must evaluate arithmetic requests under 20ms.", "priority": "HIGH"},
+                    {"code": "NFR-002", "title": "IEEE-754 Arithmetic Compliance", "description": "Calculation engine complies with IEEE-754 floating point arithmetic standards.", "priority": "CRITICAL"}
+                ],
+                "entities": [
+                    "Calculation",
+                    "MemoryRegister",
+                    "AuditTape"
+                ]
+            }
         
         return {
             "project_name": spec.project_name,
@@ -85,6 +119,55 @@ class MockLLMProvider(BaseLLMProvider):
         p_name = structured_reqs.get("project_name", "Application")
         domain = structured_reqs.get("domain", "General")
         spec = analyze_user_prompt(f"{p_name} {domain}")
+
+        if spec.ui_type == "CALCULATOR":
+            return {
+                "title": f"Engineering Contract - {p_name}",
+                "version": "1.0.0",
+                "status": "APPROVED",
+                "domain": domain,
+                "functional_requirements": structured_reqs.get("functional_requirements", []),
+                "business_rules": structured_reqs.get("business_rules", []),
+                "security_requirements": structured_reqs.get("security_requirements", []),
+                "entities": structured_reqs.get("entities", []),
+                "api_spec": [
+                    {"method": "POST", "path": "/api/calculate", "summary": "Evaluate math expression (Subject to BR-001)"},
+                    {"method": "GET", "path": "/api/history", "summary": "Retrieve calculation audit tape"},
+                    {"method": "DELETE", "path": "/api/history", "summary": "Clear calculation tape"},
+                    {"method": "POST", "path": "/api/memory", "summary": "Update memory register (store, add, sub, clear)"},
+                    {"method": "GET", "path": "/api/memory", "summary": "Recall active memory register value"},
+                    {"method": "GET", "path": "/health", "summary": "System health check"}
+                ],
+                "database_constraints": [
+                    "Primary key: calculations.id (Auto-increment)",
+                    "Primary key: memory_registers.id (Auto-increment)",
+                    "Not null constraint: calculations.expression, calculations.result"
+                ],
+                "acceptance_criteria": [
+                    {
+                        "req_code": "BR-001",
+                        "criterion": "Given a division expression with divisor zero: the system must catch the zero division, return HTTP 400 with 'Cannot divide by zero', and prevent 500 server crash."
+                    },
+                    {
+                        "req_code": "FR-001",
+                        "criterion": "Basic arithmetic operations (add, sub, mul, div) compute correctly according to standard precedence."
+                    },
+                    {
+                        "req_code": "FR-004",
+                        "criterion": "Memory register operations (M+, M-, MR, MC, MS) store and recall accumulated numeric state accurately."
+                    },
+                    {
+                        "req_code": "SEC-001",
+                        "criterion": "Unsafe or malicious Python code injection attempts return HTTP 400 Bad Request."
+                    }
+                ],
+                "traceability_matrix": [
+                    {"req": "BR-001", "criterion": "Given divisor zero, return 400 Bad Request safely", "test": "TC-BR-001-01", "component": "app/services/calculator_service.py"},
+                    {"req": "FR-001", "criterion": "Arithmetic operations compute correctly", "test": "TC-FR-001-01", "component": "app/services/calculator_service.py"},
+                    {"req": "FR-004", "criterion": "Memory register updates properly", "test": "TC-FR-004-01", "component": "app/main.py"},
+                    {"req": "SEC-001", "criterion": "Malicious code rejected safely", "test": "TC-SEC-001-01", "component": "app/services/calculator_service.py"}
+                ]
+            }
 
         return {
             "title": f"Engineering Contract — {p_name}",
@@ -138,6 +221,26 @@ class MockLLMProvider(BaseLLMProvider):
         }
 
     async def diagnose_failure(self, failed_test: Dict[str, Any], logs: str, code_context: str) -> Dict[str, Any]:
+        is_calc = (
+            "calculator" in logs.lower() 
+            or "zerodivision" in logs.lower() 
+            or "divide" in logs.lower() 
+            or "calculator" in code_context.lower()
+            or "math" in logs.lower()
+        )
+        if is_calc:
+            return {
+                "test_id": failed_test.get("test_id", "TC-BR-001-01"),
+                "problem": "Unhandled ZeroDivisionError in calculation service (BR-001 Safety Invariant Violation)",
+                "severity": "CRITICAL",
+                "root_cause": "The arithmetic evaluator attempts raw division without verifying if the divisor operand evaluates to zero. When a zero divisor is provided (e.g. '10 / 0'), Python throws an unhandled ZeroDivisionError which bubbles up as an HTTP 500 Server Error rather than returning a clean HTTP 400 Bad Request with an informative safety error message.",
+                "evidence": "Evaluating expression '10 / 0' resulted in an unhandled ZeroDivisionError (HTTP 500) instead of HTTP 400 Bad Request with 'Cannot divide by zero'.",
+                "affected_component": "app/services/calculator_service.py",
+                "recommended_fix": "Add an explicit zero-divisor guard inside the division evaluator: if the divisor is 0, raise HTTPException(status_code=400, detail='Cannot divide by zero').",
+                "confidence": 0.99,
+                "diagnosed_by": "Debugger Agent"
+            }
+
         return {
             "test_id": failed_test.get("test_id", "TC-BR-001-01"),
             "problem": "Race condition leading to Concurrency Invariant violation (BR-001)",
@@ -151,6 +254,21 @@ class MockLLMProvider(BaseLLMProvider):
         }
 
     async def generate_repair(self, diagnosis: Dict[str, Any], current_code: str) -> Dict[str, Any]:
+        if "calculator" in diagnosis.get("affected_component", "").lower() or "zerodivision" in diagnosis.get("problem", "").lower():
+            return {
+                "strategy": "Inject zero-division safety guard inside calculator evaluation service returning HTTP 400 Bad Request.",
+                "files_to_modify": ["app/services/calculator_service.py"],
+                "summary": "Added defensive zero-divisor check intercepting division-by-zero expressions before execution and returning HTTP 400 Bad Request.",
+                "diff": """@@ -18,6 +18,9 @@
+-    # UNGUARDED (BR-001 VULNERABILITY): Raw division raises ZeroDivisionError (HTTP 500)
+-    return left / right
++    # REPAIRED (BR-001): Zero-Division Safety Guard
++    if right == 0:
++        raise HTTPException(status_code=400, detail="Cannot divide by zero")
++    return left / right
+"""
+            }
+
         return {
             "strategy": "Apply thread-safe atomic synchronization and database composite uniqueness validation on (item_id, slot_time).",
             "files_to_modify": ["app/services/allocation_service.py", "app/models.py"],

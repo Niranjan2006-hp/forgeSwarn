@@ -93,7 +93,9 @@ class TestRunner:
 
             # Category
             category = "FUNCTIONAL"
-            if "br_001" in test_func_name or "concurrency" in test_func_name:
+            if "zero_division" in test_func_name or "math" in test_func_name:
+                category = "SAFETY"
+            elif "br_001" in test_func_name or "concurrency" in test_func_name:
                 category = "CONCURRENCY"
             elif "sec_" in test_func_name:
                 category = "SECURITY"
@@ -110,7 +112,10 @@ class TestRunner:
             else:
                 status = "FAILED"
                 failed_count += 1
-                err = f"BR-001 Concurrency Invariant Broken: Both simultaneous requests succeeded. Expected exactly 1 success and 1 conflict rejection."
+                if "zero_division" in test_func_name:
+                    err = "BR-001 Zero-Division Safety Invariant Broken: Division by zero triggered unhandled HTTP 500 error instead of defensive HTTP 400 Bad Request."
+                else:
+                    err = f"BR-001 Concurrency Invariant Broken: Both simultaneous requests succeeded. Expected exactly 1 success and 1 conflict rejection."
                 failed_tests_list.append(test_id)
 
             results.append({

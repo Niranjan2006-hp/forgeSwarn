@@ -1,12 +1,10 @@
-import socket
+import sys
+import os
 import uvicorn
-from app.main import app
 
 if __name__ == "__main__":
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    sock.bind(("127.0.0.1", 8002))
-    sock.listen(128)
-    config = uvicorn.Config(app, log_level="info")
-    server = uvicorn.Server(config)
-    server.run(sockets=[sock])
+    backend_dir = os.path.dirname(os.path.abspath(__file__))
+    if backend_dir not in sys.path:
+        sys.path.insert(0, backend_dir)
+        
+    uvicorn.run("app.main:app", host="127.0.0.1", port=8002, log_level="info")

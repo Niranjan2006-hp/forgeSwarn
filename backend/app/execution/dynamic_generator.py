@@ -7,6 +7,720 @@ logger = logging.getLogger("forgeswarm.dynamic_generator")
 
 class DynamicCodeGenerator:
     @classmethod
+    def generate_calculator_project(cls, workspace: ProjectWorkspace, spec: DomainSpec, has_bug: bool = True) -> List[str]:
+        # 1. requirements.txt
+        workspace.write_file("requirements.txt", """fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+sqlalchemy>=2.0.35
+pydantic>=2.9.0
+pytest>=8.3.0
+httpx>=0.27.0
+""")
+
+        # 2. Dockerfile
+        workspace.write_file("Dockerfile", """FROM python:3.12-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . .
+EXPOSE 8005
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8005"]
+""")
+
+        # 3. app/database.py
+        workspace.write_file("app/database.py", """from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, declarative_base
+
+SQLALCHEMY_DATABASE_URL = "sqlite:///./app_calculator.db"
+
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
+)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+""")
+
+        # 4. app/models.py
+        workspace.write_file("app/models.py", """from datetime import datetime
+from sqlalchemy import Column, Integer, String, Float, DateTime
+from app.database import Base
+
+class Calculation(Base):
+    __tablename__ = "calculations"
+    id = Column(Integer, primary_key=True, index=True)
+    expression = Column(String(255), nullable=False)
+    result = Column(String(100), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class MemoryRegister(Base):
+    __tablename__ = "memory_registers"
+    id = Column(Integer, primary_key=True, index=True)
+    register_name = Column(String(50), default="M", unique=True)
+    value = Column(Float, default=0.0)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+""")
+
+        # 5. app/services/calculator_service.py
+        if has_bug:
+            zero_div_block = """        if op_type is ast.Div:
+            # VULNERABILITY (BR-001 VIOLATION): Missing zero-division check
+            # Executing raw division raises unhandled ZeroDivisionError (HTTP 500)
+            return left / right"""
+        else:
+            zero_div_block = """        if op_type is ast.Div:
+            # REPAIRED (BR-001): Zero-Division Safety Guard prevents 500 server crash
+            if right == 0:
+                raise HTTPException(status_code=400, detail="Cannot divide by zero")
+            return left / right"""
+
+        service_code = f"""import ast
+import operator
+import math
+from fastapi import HTTPException
+
+_OPERATORS = {{
+    ast.Add: operator.add,
+    ast.Sub: operator.sub,
+    ast.Mult: operator.mul,
+    ast.Div: operator.truediv,
+    ast.Pow: operator.pow,
+    ast.USub: operator.neg,
+    ast.UAdd: operator.pos,
+    ast.Mod: operator.mod,
+}}
+
+_FUNCTIONS = {{
+    "sqrt": math.sqrt,
+    "sin": math.sin,
+    "cos": math.cos,
+    "tan": math.tan,
+    "log": math.log10,
+    "ln": math.log,
+    "abs": abs,
+}}
+
+def _eval_node(node):
+    if isinstance(node, ast.Constant):
+        if isinstance(node.value, (int, float)):
+            return float(node.value)
+        raise HTTPException(status_code=400, detail="Invalid numeric constant in expression")
+    elif isinstance(node, ast.BinOp):
+        left = _eval_node(node.left)
+        right = _eval_node(node.right)
+        op_type = type(node.op)
+{zero_div_block}
+        if op_type in _OPERATORS:
+            return _OPERATORS[op_type](left, right)
+        raise HTTPException(status_code=400, detail="Unsupported arithmetic operator")
+    elif isinstance(node, ast.UnaryOp):
+        operand = _eval_node(node.operand)
+        op_type = type(node.op)
+        if op_type in _OPERATORS:
+            return _OPERATORS[op_type](operand)
+        raise HTTPException(status_code=400, detail="Unsupported unary operator")
+    elif isinstance(node, ast.Call):
+        func_name = node.func.id if isinstance(node.func, ast.Name) else ""
+        if func_name in _FUNCTIONS:
+            args = [_eval_node(arg) for arg in node.args]
+            return _FUNCTIONS[func_name](*args)
+        raise HTTPException(status_code=400, detail=f"Unsupported function: {{func_name}}")
+    elif isinstance(node, ast.Name):
+        if node.id.lower() == "pi":
+            return math.pi
+        elif node.id.lower() == "e":
+            return math.e
+        raise HTTPException(status_code=400, detail=f"Unknown identifier: {{node.id}}")
+    else:
+        raise HTTPException(status_code=400, detail="Unsupported expression syntax")
+
+def evaluate_calculation(raw_expr: str) -> float:
+    if not raw_expr or not raw_expr.strip():
+        raise HTTPException(status_code=400, detail="Expression cannot be empty")
+    
+    expr = raw_expr.strip()
+    if len(expr) > 255:
+        raise HTTPException(status_code=400, detail="Expression exceeds maximum character limit")
+
+    # Defense against code injection
+    if any(keyword in expr.lower() for keyword in ["__", "import", "eval", "exec", "open", "os", "sys", "subprocess", "lambda", "class"]):
+        raise HTTPException(status_code=400, detail="Malicious expression detected: code execution prohibited")
+
+    # Normalize symbols:
+    expr = expr.replace("×", "*").replace("÷", "/").replace("−", "-").replace("^", "**")
+    expr = expr.replace("%", " * 0.01")
+
+    try:
+        parsed = ast.parse(expr, mode='eval')
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Syntax error in mathematical expression: {{str(e)}}")
+
+    result = _eval_node(parsed.body)
+    if math.isnan(result) or math.isinf(result):
+        raise HTTPException(status_code=400, detail="Calculation resulted in undefined numeric overflow")
+
+    return result
+"""
+        workspace.write_file("app/services/calculator_service.py", service_code)
+
+        # 6. app/main.py
+        main_code = """from typing import Optional
+from fastapi import FastAPI, Depends, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+from app.database import engine, Base, get_db
+from app.models import Calculation, MemoryRegister
+from app.services.calculator_service import evaluate_calculation
+
+# Initialize tables
+Base.metadata.create_all(bind=engine)
+
+app = FastAPI(
+    title="Scientific & Standard Web Calculator",
+    version="1.0.0",
+    description="Engineered by ForgeSwarm Autonomous AI Engineering Swarm"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+def seed_calculator():
+    db = next(get_db())
+    if db.query(MemoryRegister).count() == 0:
+        db.add(MemoryRegister(register_name="M", value=0.0))
+        db.commit()
+    if db.query(Calculation).count() == 0:
+        db.add_all([
+            Calculation(expression="128 + 256", result="384"),
+            Calculation(expression="2 ** 10", result="1024"),
+            Calculation(expression="sqrt(65536)", result="256"),
+        ])
+        db.commit()
+    db.close()
+
+seed_calculator()
+
+class CalculateRequest(BaseModel):
+    expression: str
+
+class MemoryRequest(BaseModel):
+    action: str
+    value: Optional[float] = 0.0
+
+@app.post("/api/calculate")
+def calculate_endpoint(req: CalculateRequest, db: Session = Depends(get_db)):
+    val = evaluate_calculation(req.expression)
+    if val.is_integer():
+        formatted = str(int(val))
+    else:
+        formatted = f"{round(val, 10):g}"
+    
+    calc = Calculation(expression=req.expression, result=formatted)
+    db.add(calc)
+    db.commit()
+    db.refresh(calc)
+    return {
+        "id": calc.id,
+        "expression": req.expression,
+        "result": val,
+        "formatted_result": formatted
+    }
+
+@app.get("/api/history")
+def get_history(db: Session = Depends(get_db)):
+    calcs = db.query(Calculation).order_by(Calculation.id.desc()).limit(50).all()
+    return [{
+        "id": c.id,
+        "expression": c.expression,
+        "result": c.result,
+        "created_at": c.created_at.strftime("%H:%M:%S") if c.created_at else ""
+    } for c in calcs]
+
+@app.delete("/api/history")
+def clear_history(db: Session = Depends(get_db)):
+    db.query(Calculation).delete()
+    db.commit()
+    return {"status": "SUCCESS", "message": "Calculation history tape cleared"}
+
+@app.get("/api/memory")
+def get_memory(db: Session = Depends(get_db)):
+    mem = db.query(MemoryRegister).filter(MemoryRegister.register_name == "M").first()
+    return {"value": mem.value if mem else 0.0}
+
+@app.post("/api/memory")
+def update_memory(req: MemoryRequest, db: Session = Depends(get_db)):
+    mem = db.query(MemoryRegister).filter(MemoryRegister.register_name == "M").first()
+    if not mem:
+        mem = MemoryRegister(register_name="M", value=0.0)
+        db.add(mem)
+    
+    act = req.action.lower()
+    if act == "store":
+        mem.value = req.value or 0.0
+    elif act == "add":
+        mem.value += (req.value or 0.0)
+    elif act == "subtract":
+        mem.value -= (req.value or 0.0)
+    elif act == "clear":
+        mem.value = 0.0
+    else:
+        raise HTTPException(status_code=400, detail=f"Unknown memory action: {req.action}")
+    
+    db.commit()
+    db.refresh(mem)
+    return {"status": "SUCCESS", "value": mem.value}
+
+@app.get("/health")
+def health():
+    return {"status": "HEALTHY", "app": "Scientific & Standard Web Calculator", "engine": "FastAPI + Python Math AST"}
+
+@app.get("/", response_class=HTMLResponse)
+def index():
+    return '''<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ForgeSwarm • Operating Web Calculator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap');
+    body { font-family: 'Inter', sans-serif; }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col items-center justify-center p-4">
+  <div class="w-full max-w-4xl bg-slate-900/90 border border-slate-800 rounded-3xl shadow-2xl p-6 backdrop-blur-xl">
+    <!-- Header -->
+    <div class="flex flex-wrap items-center justify-between pb-5 border-b border-slate-800 mb-6 gap-3">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center font-bold text-white shadow-lg shadow-emerald-500/20">
+          ±
+        </div>
+        <div>
+          <h1 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+            ForgeSwarm Calculator
+            <span class="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full font-medium">Live API</span>
+          </h1>
+          <p class="text-xs text-slate-400">Autonomous Engineering Generated Web Utility</p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-2">
+        <span id="mem-badge" class="mono text-xs px-2.5 py-1 bg-indigo-950/60 text-indigo-300 border border-indigo-800/50 rounded-lg">M: 0</span>
+        <button onclick="clearHistory()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg border border-slate-700 transition">Clear Tape</button>
+      </div>
+    </div>
+
+    <!-- Main Grid: Calculator Left, Tape Right -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <!-- Calculator Body -->
+      <div class="lg:col-span-7 bg-slate-950 border border-slate-800 rounded-2xl p-5 shadow-inner">
+        <!-- Dual Display Screen -->
+        <div class="bg-slate-900 border border-slate-800/80 rounded-xl p-4 mb-4">
+          <div id="expr-display" class="mono text-sm text-slate-400 h-6 text-right overflow-x-auto whitespace-nowrap"></div>
+          <div id="main-display" class="mono text-4xl sm:text-5xl font-bold text-emerald-400 text-right overflow-x-auto whitespace-nowrap select-all tracking-tight py-1">0</div>
+          <div id="err-banner" class="hidden text-xs text-rose-400 font-mono text-right mt-1 font-semibold"></div>
+        </div>
+
+        <!-- Memory Buttons -->
+        <div class="grid grid-cols-5 gap-2 mb-3">
+          <button onclick="handleMemory('clear')" class="py-1.5 text-xs font-mono font-semibold bg-slate-900 hover:bg-slate-800 text-slate-400 rounded-lg border border-slate-800 transition active:scale-95">MC</button>
+          <button onclick="handleMemory('recall')" class="py-1.5 text-xs font-mono font-semibold bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-lg border border-slate-800 transition active:scale-95">MR</button>
+          <button onclick="handleMemory('add')" class="py-1.5 text-xs font-mono font-semibold bg-slate-900 hover:bg-slate-800 text-indigo-400 rounded-lg border border-slate-800 transition active:scale-95">M+</button>
+          <button onclick="handleMemory('subtract')" class="py-1.5 text-xs font-mono font-semibold bg-slate-900 hover:bg-slate-800 text-indigo-400 rounded-lg border border-slate-800 transition active:scale-95">M-</button>
+          <button onclick="handleMemory('store')" class="py-1.5 text-xs font-mono font-semibold bg-slate-900 hover:bg-slate-800 text-indigo-300 rounded-lg border border-slate-800 transition active:scale-95">MS</button>
+        </div>
+
+        <!-- Scientific Ribbon -->
+        <div class="grid grid-cols-6 gap-2 mb-3">
+          <button onclick="appendFunction('sqrt(')" class="py-2 text-xs font-mono bg-slate-900/80 hover:bg-slate-800 text-teal-400 rounded-lg border border-slate-800 transition">√x</button>
+          <button onclick="appendOperator('**2')" class="py-2 text-xs font-mono bg-slate-900/80 hover:bg-slate-800 text-teal-400 rounded-lg border border-slate-800 transition">x²</button>
+          <button onclick="appendOperator('**')" class="py-2 text-xs font-mono bg-slate-900/80 hover:bg-slate-800 text-teal-400 rounded-lg border border-slate-800 transition">xʸ</button>
+          <button onclick="appendPercentage()" class="py-2 text-xs font-mono bg-slate-900/80 hover:bg-slate-800 text-teal-400 rounded-lg border border-slate-800 transition">%</button>
+          <button onclick="appendConstant('pi')" class="py-2 text-xs font-mono bg-slate-900/80 hover:bg-slate-800 text-teal-400 rounded-lg border border-slate-800 transition">π</button>
+          <button onclick="toggleSign()" class="py-2 text-xs font-mono bg-slate-900/80 hover:bg-slate-800 text-teal-400 rounded-lg border border-slate-800 transition">±</button>
+        </div>
+
+        <!-- Keypad Grid -->
+        <div class="grid grid-cols-4 gap-2.5">
+          <!-- Row 1 -->
+          <button onclick="clearAll()" class="py-3.5 text-sm font-bold bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-800/40 rounded-xl transition active:scale-95">C</button>
+          <button onclick="clearEntry()" class="py-3.5 text-sm font-semibold bg-slate-800/60 hover:bg-slate-800 text-slate-300 border border-slate-700/60 rounded-xl transition active:scale-95">CE</button>
+          <button onclick="deleteDigit()" class="py-3.5 text-sm font-semibold bg-slate-800/60 hover:bg-slate-800 text-slate-300 border border-slate-700/60 rounded-xl transition active:scale-95">DEL</button>
+          <button onclick="appendOperator('/')" class="py-3.5 text-lg font-bold bg-amber-950/40 hover:bg-amber-900/60 text-amber-400 border border-amber-800/40 rounded-xl transition active:scale-95">÷</button>
+
+          <!-- Row 2 -->
+          <button onclick="appendDigit('7')" class="py-3.5 text-lg font-mono font-semibold bg-slate-900 hover:bg-slate-800 text-white border border-slate-800 rounded-xl transition active:scale-95">7</button>
+          <button onclick="appendDigit('8')" class="py-3.5 text-lg font-mono font-semibold bg-slate-900 hover:bg-slate-800 text-white border border-slate-800 rounded-xl transition active:scale-95">8</button>
+          <button onclick="appendDigit('9')" class="py-3.5 text-lg font-mono font-semibold bg-slate-900 hover:bg-slate-800 text-white border border-slate-800 rounded-xl transition active:scale-95">9</button>
+          <button onclick="appendOperator('*')" class="py-3.5 text-lg font-bold bg-amber-950/40 hover:bg-amber-900/60 text-amber-400 border border-amber-800/40 rounded-xl transition active:scale-95">×</button>
+
+          <!-- Row 3 -->
+          <button onclick="appendDigit('4')" class="py-3.5 text-lg font-mono font-semibold bg-slate-900 hover:bg-slate-800 text-white border border-slate-800 rounded-xl transition active:scale-95">4</button>
+          <button onclick="appendDigit('5')" class="py-3.5 text-lg font-mono font-semibold bg-slate-900 hover:bg-slate-800 text-white border border-slate-800 rounded-xl transition active:scale-95">5</button>
+          <button onclick="appendDigit('6')" class="py-3.5 text-lg font-mono font-semibold bg-slate-900 hover:bg-slate-800 text-white border border-slate-800 rounded-xl transition active:scale-95">6</button>
+          <button onclick="appendOperator('-')" class="py-3.5 text-lg font-bold bg-amber-950/40 hover:bg-amber-900/60 text-amber-400 border border-amber-800/40 rounded-xl transition active:scale-95">−</button>
+
+          <!-- Row 4 -->
+          <button onclick="appendDigit('1')" class="py-3.5 text-lg font-mono font-semibold bg-slate-900 hover:bg-slate-800 text-white border border-slate-800 rounded-xl transition active:scale-95">1</button>
+          <button onclick="appendDigit('2')" class="py-3.5 text-lg font-mono font-semibold bg-slate-900 hover:bg-slate-800 text-white border border-slate-800 rounded-xl transition active:scale-95">2</button>
+          <button onclick="appendDigit('3')" class="py-3.5 text-lg font-mono font-semibold bg-slate-900 hover:bg-slate-800 text-white border border-slate-800 rounded-xl transition active:scale-95">3</button>
+          <button onclick="appendOperator('+')" class="py-3.5 text-lg font-bold bg-amber-950/40 hover:bg-amber-900/60 text-amber-400 border border-amber-800/40 rounded-xl transition active:scale-95">+</button>
+
+          <!-- Row 5 -->
+          <button onclick="appendDigit('(')" class="py-3.5 text-base font-mono bg-slate-900 hover:bg-slate-800 text-slate-400 border border-slate-800 rounded-xl transition active:scale-95">(</button>
+          <button onclick="appendDigit('0')" class="py-3.5 text-lg font-mono font-semibold bg-slate-900 hover:bg-slate-800 text-white border border-slate-800 rounded-xl transition active:scale-95">0</button>
+          <button onclick="appendDigit('.')" class="py-3.5 text-lg font-mono font-semibold bg-slate-900 hover:bg-slate-800 text-white border border-slate-800 rounded-xl transition active:scale-95">.</button>
+          <button onclick="calculate()" class="py-3.5 text-xl font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-lg shadow-emerald-600/30 transition active:scale-95">=</button>
+        </div>
+      </div>
+
+      <!-- Calculation Tape / History -->
+      <div class="lg:col-span-5 bg-slate-950 border border-slate-800 rounded-2xl p-5 flex flex-col shadow-inner">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-800/80 mb-3">
+          <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Audit Calculation Tape</span>
+          <span class="text-xs text-slate-500 font-mono">SQLite Persistent</span>
+        </div>
+        <div id="tape-list" class="flex-1 space-y-2 overflow-y-auto max-h-[360px] pr-1">
+          <!-- Dynamic history items loaded via JS -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentInput = "0";
+    let expressionTrace = "";
+    let shouldResetDisplay = false;
+
+    const mainDisplay = document.getElementById("main-display");
+    const exprDisplay = document.getElementById("expr-display");
+    const errBanner = document.getElementById("err-banner");
+    const memBadge = document.getElementById("mem-badge");
+    const tapeList = document.getElementById("tape-list");
+
+    function updateDisplay() {
+      mainDisplay.innerText = currentInput;
+      exprDisplay.innerText = expressionTrace;
+    }
+
+    function clearError() {
+      errBanner.classList.add("hidden");
+      errBanner.innerText = "";
+    }
+
+    function showError(msg) {
+      errBanner.innerText = msg;
+      errBanner.classList.remove("hidden");
+    }
+
+    function appendDigit(d) {
+      clearError();
+      if (currentInput === "0" || shouldResetDisplay) {
+        currentInput = d;
+        shouldResetDisplay = false;
+      } else {
+        currentInput += d;
+      }
+      updateDisplay();
+    }
+
+    function appendOperator(op) {
+      clearError();
+      expressionTrace += " " + currentInput + " " + op;
+      shouldResetDisplay = true;
+      updateDisplay();
+    }
+
+    function appendFunction(fn) {
+      clearError();
+      expressionTrace += " " + fn;
+      shouldResetDisplay = true;
+      updateDisplay();
+    }
+
+    function appendPercentage() {
+      clearError();
+      currentInput += "%";
+      updateDisplay();
+    }
+
+    function appendConstant(c) {
+      clearError();
+      currentInput = c;
+      shouldResetDisplay = false;
+      updateDisplay();
+    }
+
+    function toggleSign() {
+      if (currentInput.startsWith("-")) {
+        currentInput = currentInput.slice(1);
+      } else if (currentInput !== "0") {
+        currentInput = "-" + currentInput;
+      }
+      updateDisplay();
+    }
+
+    function deleteDigit() {
+      clearError();
+      if (currentInput.length > 1) {
+        currentInput = currentInput.slice(0, -1);
+      } else {
+        currentInput = "0";
+      }
+      updateDisplay();
+    }
+
+    function clearEntry() {
+      clearError();
+      currentInput = "0";
+      updateDisplay();
+    }
+
+    function clearAll() {
+      clearError();
+      currentInput = "0";
+      expressionTrace = "";
+      updateDisplay();
+    }
+
+    async function calculate() {
+      clearError();
+      const fullExpr = (expressionTrace + " " + currentInput).trim();
+      if (!fullExpr) return;
+
+      try {
+        const res = await fetch("/api/calculate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ expression: fullExpr })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          expressionTrace = fullExpr + " =";
+          currentInput = data.formatted_result;
+          shouldResetDisplay = true;
+          updateDisplay();
+          loadHistory();
+        } else {
+          showError(data.detail || "Calculation error");
+          currentInput = "Error";
+          updateDisplay();
+        }
+      } catch (err) {
+        showError("Network / Server connection error");
+      }
+    }
+
+    async function handleMemory(act) {
+      try {
+        let val = parseFloat(currentInput) || 0;
+        let body = { action: act, value: val };
+        if (act === "recall") {
+          const res = await fetch("/api/memory");
+          const data = await res.json();
+          currentInput = String(data.value);
+          shouldResetDisplay = true;
+          updateDisplay();
+          return;
+        }
+        const res = await fetch("/api/memory", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        memBadge.innerText = "M: " + data.value;
+      } catch (e) {
+        showError("Memory register fault");
+      }
+    }
+
+    async function loadHistory() {
+      try {
+        const res = await fetch("/api/history");
+        const list = await res.json();
+        tapeList.innerHTML = "";
+        list.forEach(item => {
+          const div = document.createElement("div");
+          div.className = "p-2.5 rounded-lg bg-slate-900 hover:bg-slate-850 border border-slate-800/80 cursor-pointer transition flex items-center justify-between";
+          div.onclick = () => {
+            currentInput = item.result;
+            shouldResetDisplay = true;
+            updateDisplay();
+          };
+          div.innerHTML = `
+            <div>
+              <div class="mono text-xs text-slate-400">${item.expression}</div>
+              <div class="mono text-sm font-bold text-emerald-400">= ${item.result}</div>
+            </div>
+            <span class="text-[10px] text-slate-500 font-mono">${item.created_at || ""}</span>
+          `;
+          tapeList.appendChild(div);
+        });
+      } catch (e) {}
+    }
+
+    async function clearHistory() {
+      await fetch("/api/history", { method: "DELETE" });
+      loadHistory();
+    }
+
+    // Keyboard listener
+    window.addEventListener("keydown", (e) => {
+      if (e.key >= "0" && e.key <= "9") appendDigit(e.key);
+      else if (e.key === ".") appendDigit(".");
+      else if (e.key === "+") appendOperator("+");
+      else if (e.key === "-") appendOperator("-");
+      else if (e.key === "*") appendOperator("*");
+      else if (e.key === "/") { e.preventDefault(); appendOperator("/"); }
+      else if (e.key === "Enter" || e.key === "=") { e.preventDefault(); calculate(); }
+      else if (e.key === "Backspace") deleteDigit();
+      else if (e.key === "Escape") clearAll();
+    });
+
+    loadHistory();
+  </script>
+</body>
+</html>'''
+"""
+        workspace.write_file("app/main.py", main_code)
+
+        # 7. tests/test_suite.py
+        test_code = """import pytest
+from fastapi.testclient import TestClient
+from app.main import app
+
+client = TestClient(app)
+
+# --- FR-001: Standard Arithmetic Operations ---
+def test_fr_001_addition():
+    resp = client.post("/api/calculate", json={"expression": "128 + 256"})
+    assert resp.status_code == 200
+    assert resp.json()["result"] == 384.0
+
+def test_fr_001_subtraction():
+    resp = client.post("/api/calculate", json={"expression": "500 - 116"})
+    assert resp.status_code == 200
+    assert resp.json()["result"] == 384.0
+
+def test_fr_001_multiplication():
+    resp = client.post("/api/calculate", json={"expression": "16 * 24"})
+    assert resp.status_code == 200
+    assert resp.json()["result"] == 384.0
+
+def test_fr_001_standard_division():
+    resp = client.post("/api/calculate", json={"expression": "1920 / 5"})
+    assert resp.status_code == 200
+    assert resp.json()["result"] == 384.0
+
+def test_fr_001_order_of_operations():
+    resp = client.post("/api/calculate", json={"expression": "10 + 20 * 3"})
+    assert resp.status_code == 200
+    assert resp.json()["result"] == 70.0
+
+# --- FR-002: Advanced & Scientific Functions ---
+def test_fr_002_square_root():
+    resp = client.post("/api/calculate", json={"expression": "sqrt(144)"})
+    assert resp.status_code == 200
+    assert resp.json()["result"] == 12.0
+
+def test_fr_002_power_exponentiation():
+    resp = client.post("/api/calculate", json={"expression": "2 ** 10"})
+    assert resp.status_code == 200
+    assert resp.json()["result"] == 1024.0
+
+def test_fr_002_percentage_calculation():
+    resp = client.post("/api/calculate", json={"expression": "500 * 20%"})
+    assert resp.status_code == 200
+    assert resp.json()["result"] == 100.0
+
+# --- FR-003: LCD Display Formatting ---
+def test_fr_003_lcd_display_formatting():
+    resp = client.post("/api/calculate", json={"expression": "0.1 + 0.2"})
+    assert resp.status_code == 200
+    assert resp.json()["formatted_result"] == "0.3"
+
+# --- FR-004: Memory Registers ---
+def test_fr_004_memory_store_and_recall():
+    resp1 = client.post("/api/memory", json={"action": "store", "value": 42.0})
+    assert resp1.status_code == 200
+    assert resp1.json()["value"] == 42.0
+
+    resp2 = client.get("/api/memory")
+    assert resp2.status_code == 200
+    assert resp2.json()["value"] == 42.0
+
+def test_fr_004_memory_add_subtract():
+    client.post("/api/memory", json={"action": "store", "value": 10.0})
+    resp1 = client.post("/api/memory", json={"action": "add", "value": 15.0})
+    assert resp1.status_code == 200
+    assert resp1.json()["value"] == 25.0
+
+    resp2 = client.post("/api/memory", json={"action": "subtract", "value": 5.0})
+    assert resp2.status_code == 200
+    assert resp2.json()["value"] == 20.0
+
+def test_fr_004_memory_clear():
+    resp = client.post("/api/memory", json={"action": "clear"})
+    assert resp.status_code == 200
+    assert resp.json()["value"] == 0.0
+
+# --- FR-005: Calculation Tape & History ---
+def test_fr_005_calculation_history_persistence():
+    client.post("/api/calculate", json={"expression": "99 + 1"})
+    resp = client.get("/api/history")
+    assert resp.status_code == 200
+    history = resp.json()
+    assert len(history) > 0
+    assert any(h["expression"] == "99 + 1" for h in history)
+
+def test_fr_005_calculation_history_clear():
+    del_resp = client.delete("/api/history")
+    assert del_resp.status_code == 200
+    get_resp = client.get("/api/history")
+    assert len(get_resp.json()) == 0
+
+# --- SEC-001: Injection Defense ---
+def test_sec_001_expression_injection_defense():
+    resp = client.post("/api/calculate", json={"expression": "__import__('os').system('ls')"})
+    assert resp.status_code == 400
+
+# --- NFR-001: System Health ---
+def test_nfr_001_health_check():
+    resp = client.get("/health")
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "HEALTHY"
+
+# --- BR-001: Zero-Division Safety Invariant ---
+def test_br_001_zero_division_prevention():
+    \"\"\"
+    BR-001 SAFETY INVARIANT:
+    Division by zero must return HTTP 400 Bad Request with 'Cannot divide by zero',
+    and NEVER crash with HTTP 500 or unhandled server error.
+    \"\"\"
+    resp = client.post("/api/calculate", json={"expression": "10 / 0"})
+    assert resp.status_code == 400, f"Expected 400 Bad Request for zero division, got {resp.status_code}"
+    assert "cannot divide by zero" in resp.json().get("detail", "").lower()
+"""
+        workspace.write_file("tests/test_suite.py", test_code)
+        return workspace.list_files()
+
+    @classmethod
     def generate_project(cls, workspace: ProjectWorkspace, user_requirement: str, has_bug: bool = True) -> List[str]:
         """
         Dynamically generates a full-stack application (FastAPI + SQLAlchemy + UI + Pytest Suite)
@@ -14,6 +728,9 @@ class DynamicCodeGenerator:
         """
         workspace.initialize()
         spec: DomainSpec = analyze_user_prompt(user_requirement)
+
+        if spec.ui_type == "CALCULATOR":
+            return cls.generate_calculator_project(workspace, spec, has_bug)
 
         item_cls = spec.item_singular.capitalize()
         alloc_cls = f"{item_cls}Allocation"

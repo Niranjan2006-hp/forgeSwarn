@@ -66,7 +66,14 @@ def analyze_user_prompt(prompt: str) -> DomainSpec:
     p_clean = re.sub(r'\bvehical\b', 'vehicle', p_clean)
     p_clean = re.sub(r'\bintrenship\b', 'internship', p_clean)
 
+    p_clean = re.sub(r'\bcalculater\b', 'calculator', p_clean)
+    p_clean = re.sub(r'\bcalculatr\b', 'calculator', p_clean)
+    p_clean = re.sub(r'\bcalcutor\b', 'calculator', p_clean)
+    p_clean = re.sub(r'\bclaculator\b', 'calculator', p_clean)
+
     domain_keywords = {
+        "calculator": ["calculator", "calculate", "calc", "scientific calculator", "arithmetic", "math app", "math calculator", "addition", "multiplication", "subtraction", "division", "evaluate math"],
+        "todo": ["todo", "todos", "to-do", "to-dos", "task list", "checklist", "notes app", "note taking", "task manager", "todo list"],
         "internship": ["internship", "internships", "intern", "interns", "student internship", "career", "placement", "recruitment", "trainee", "trainees", "apprentice", "apprenticeship", "job opening", "internship opportunities", "manage applications", "apply for internships"],
         "healthcare": ["hospital", "doctor", "doctors", "patient", "patients", "clinic", "medical", "appointment", "appointments", "dentist", "physician", "health"],
         "education": ["course", "courses", "class", "classes", "enroll", "enrollment", "enrollments", "student", "students", "instructor", "instructors", "curriculum", "syllabus", "academy", "university", "faculty", "tutoring"],
@@ -93,7 +100,76 @@ def analyze_user_prompt(prompt: str) -> DomainSpec:
     best_domain, top_score = sorted_domains[0] if sorted_domains else ("generic", 0)
 
     if top_score > 0:
-        if best_domain == "internship":
+        if best_domain == "calculator":
+            return DomainSpec(
+                project_name="Scientific & Standard Web Calculator",
+                domain="Mathematics & Utilities",
+                item_singular="calculation",
+                item_plural="calculations",
+                action_name="compute",
+                action_past="computed",
+                action_reverse="clear",
+                item_attr1_name="expression",
+                item_attr2_name="result",
+                seed_items=[
+                    {"name": "Standard Arithmetic", "attr1": "128 + 256", "attr2": "384"},
+                    {"name": "Exponential Power", "attr1": "2 ** 10", "attr2": "1024"},
+                    {"name": "Square Root Extraction", "attr1": "sqrt(65536)", "attr2": "256"},
+                    {"name": "Financial Compound Ratio", "attr1": "1500 * 1.085", "attr2": "1627.5"}
+                ],
+                concurrency_rule="A calculation must safely handle zero-division invariants, prevent server crashes on undefined math operations, and maintain register integrity.",
+                concurrency_invariant_title="Zero-Division Safety & Arithmetic Precision Invariant",
+                ui_type="CALCULATOR",
+                action_label="Execute Calculation",
+                record_title="Calculation Tape & History Log",
+                catalog_title="Recent Operations & Presets",
+                primary_input_label="Mathematical Expression",
+                primary_input_placeholder="e.g. (14 * 5) / 2 + sqrt(81)",
+                selection_label="Selected Operation",
+                options_label="Select Calculation Mode",
+                seed_options=[
+                    "Standard Precision (10 Decimal Digits)",
+                    "Scientific Notation (IEEE-754)",
+                    "Financial Rounding (2 Decimal Digits)"
+                ]
+            )
+
+        elif best_domain == "todo":
+            return DomainSpec(
+                project_name="Smart Productivity & Task Manager",
+                domain="Productivity & Task Management",
+                item_singular="task",
+                item_plural="tasks",
+                action_name="complete",
+                action_past="completed",
+                action_reverse="reopen",
+                item_attr1_name="priority",
+                item_attr2_name="due_date",
+                seed_items=[
+                    {"name": "Review System Architecture Specification", "attr1": "CRITICAL", "attr2": "Today • 05:00 PM"},
+                    {"name": "Implement Zero-Division Safety Guards", "attr1": "HIGH", "attr2": "Tomorrow • 10:00 AM"},
+                    {"name": "Run End-to-End Regression Verification Suite", "attr1": "HIGH", "attr2": "Friday • 02:00 PM"},
+                    {"name": "Publish Release Documentation & API Specs", "attr1": "MEDIUM", "attr2": "Next Monday • 12:00 PM"}
+                ],
+                concurrency_rule="A task item cannot be duplicated with identical titles under concurrent creation or concurrently modified to conflicting states.",
+                concurrency_invariant_title="Task Title Uniqueness & State Integrity Invariant",
+                ui_type="TODO",
+                action_label="Create New Task",
+                record_title="Active Task List & Backlog",
+                catalog_title="Task Categories & Priority Boards",
+                primary_input_label="Task Title & Detailed Description",
+                primary_input_placeholder="e.g. Conduct security vulnerability assessment...",
+                selection_label="Selected Task",
+                options_label="Select Task Priority",
+                seed_options=[
+                    "CRITICAL Priority (Immediate Action)",
+                    "HIGH Priority (Sprint Target)",
+                    "MEDIUM Priority (Standard Backlog)",
+                    "LOW Priority (Nice to Have)"
+                ]
+            )
+
+        elif best_domain == "internship":
             return DomainSpec(
                 project_name="Student Internship & Career Placement Portal",
                 domain="Higher Education & Career Services",

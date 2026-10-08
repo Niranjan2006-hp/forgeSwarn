@@ -48,3 +48,6 @@ dist-ssr/
 *.swo
 .DS_Store
 Thumbs.db
+
+# Dynamic Run Time Generated Projects
+generated_projects/
