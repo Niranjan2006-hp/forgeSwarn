@@ -6,11 +6,11 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     ports:
-      - "8000:8000"
+      - "8002:8002"
     environment:
       - DATABASE_URL=postgresql://forgeswarm:swarmpass@db:5432/forgeswarm
       - HOST=0.0.0.0
-      - PORT=8000
+      - PORT=8002
       - ENVIRONMENT=production
       - WORKSPACE_ROOT=/app/generated_projects
     volumes:
