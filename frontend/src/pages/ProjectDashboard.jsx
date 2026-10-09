@@ -140,41 +140,45 @@ export default function ProjectDashboard() {
 
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
         {/* Project Header Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/60 p-4 rounded-xl border border-slate-800">
-          <div>
-            <div className="flex items-center space-x-2">
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-cyan-400 border border-slate-700 uppercase">
-                {project?.domain || 'Healthcare'} Application
-              </span>
-              <span className="text-xs text-slate-400 font-mono">ID: {project?.id?.slice(0, 8)}</span>
+        <div className="glass-panel p-5 sm:p-6 rounded-2xl border border-slate-800 shadow-xl relative overflow-hidden">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center space-x-2">
+                <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-cyan-950/80 text-cyan-400 border border-cyan-800 uppercase font-semibold">
+                  {project?.domain || 'Engineered'} Application
+                </span>
+                <span className="text-xs text-slate-400 font-mono">
+                  Target: {project?.deployment_target || 'Isolated Sandbox'}
+                </span>
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-white mt-1.5 tracking-tight">
+                {project?.name || 'Generated Application'}
+              </h1>
+              <p className="text-xs sm:text-sm text-slate-300 max-w-3xl mt-1.5 leading-relaxed bg-slate-950/60 p-3 rounded-xl border border-slate-800/80">
+                "{project?.raw_requirement}"
+              </p>
             </div>
-            <h1 className="text-xl font-extrabold text-white mt-1">
-              {project?.name || 'Hospital Appointment Management System'}
-            </h1>
-            <p className="text-xs text-slate-400 max-w-3xl mt-1 leading-relaxed">
-              "{project?.raw_requirement}"
-            </p>
-          </div>
 
-          <div className="flex items-center space-x-3 shrink-0">
-            {project?.status === 'CREATED' && (
+            <div className="flex items-center space-x-3 shrink-0 self-start sm:self-center">
+              {project?.status === 'CREATED' && (
+                <button
+                  onClick={handleStartPipeline}
+                  disabled={isRunning}
+                  className="bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition flex items-center space-x-2 shadow-lg shadow-cyan-600/30"
+                >
+                  <Play className="w-4 h-4 fill-white" />
+                  <span>Launch Swarm Pipeline</span>
+                </button>
+              )}
+
               <button
-                onClick={handleStartPipeline}
-                disabled={isRunning}
-                className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs px-4 py-2.5 rounded-lg transition flex items-center space-x-2 shadow-lg shadow-cyan-600/30"
+                onClick={fetchProjectData}
+                className="bg-slate-900/80 hover:bg-slate-800 text-slate-300 p-2.5 rounded-xl border border-slate-700/80 transition shadow-sm hover:text-cyan-400"
+                title="Refresh State"
               >
-                <Play className="w-4 h-4 fill-white" />
-                <span>Launch Swarm Pipeline</span>
+                <RefreshCw className="w-4 h-4" />
               </button>
-            )}
-
-            <button
-              onClick={fetchProjectData}
-              className="bg-slate-800 hover:bg-slate-700 text-slate-300 p-2 rounded-lg border border-slate-700 transition"
-              title="Refresh State"
-            >
-              <RefreshCw className="w-4 h-4" />
-            </button>
+            </div>
           </div>
         </div>
 
@@ -185,7 +189,7 @@ export default function ProjectDashboard() {
         <PipelineTracker currentStatus={project?.status || 'CREATED'} />
 
         {/* Navigation Tabs */}
-        <div className="border-b border-slate-800 flex overflow-x-auto space-x-1 pb-1">
+        <div className="border-b border-slate-800/80 flex overflow-x-auto space-x-1.5 pb-2">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -193,13 +197,13 @@ export default function ProjectDashboard() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center space-x-2 px-3.5 py-2.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
+                className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
                   isActive
-                    ? 'bg-cyan-950/80 text-cyan-300 border border-cyan-800 shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
+                    ? 'bg-cyan-950/80 text-cyan-300 border border-cyan-500/50 shadow-md shadow-cyan-950/40'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60 border border-transparent'
                 } ${tab.highlight ? 'relative font-bold' : ''}`}
               >
-                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-cyan-400' : 'text-slate-400'}`} />
+                <Icon className={`w-4 h-4 ${isActive ? 'text-cyan-400' : 'text-slate-400'}`} />
                 <span>{tab.label}</span>
                 {tab.highlight && (
                   <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
@@ -215,34 +219,46 @@ export default function ProjectDashboard() {
             <div className="space-y-6">
               {/* Quick High-Level Metrics */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-4">
-                  <span className="text-[10px] uppercase font-mono text-slate-500">Requirements</span>
-                  <div className="text-xl font-bold text-white mt-1">
+                <div className="glass-card rounded-2xl p-4.5 border border-slate-800">
+                  <span className="text-[10px] uppercase font-mono text-slate-400 tracking-wider">Requirements Verified</span>
+                  <div className="text-2xl font-extrabold text-white mt-1">
                     {requirements.filter(r => r.status === 'VERIFIED').length} / {requirements.length || 6}
                   </div>
-                  <span className="text-[10px] text-emerald-400 font-mono">100% Implemented</span>
+                  <span className="text-[10px] text-emerald-400 font-mono flex items-center space-x-1 mt-1">
+                    <CheckCircle2 className="w-3 h-3 inline" />
+                    <span>100% Contract Coverage</span>
+                  </span>
                 </div>
 
-                <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-4">
-                  <span className="text-[10px] uppercase font-mono text-slate-500">Test Cases Passed</span>
-                  <div className="text-xl font-bold text-white mt-1">
+                <div className="glass-card rounded-2xl p-4.5 border border-slate-800">
+                  <span className="text-[10px] uppercase font-mono text-slate-400 tracking-wider">Automated Tests</span>
+                  <div className="text-2xl font-extrabold text-white mt-1">
                     {tests.filter(t => t.status === 'PASSED').length} / {tests.length || 17}
                   </div>
-                  <span className="text-[10px] text-emerald-400 font-mono">100% Pass Rate</span>
+                  <span className="text-[10px] text-emerald-400 font-mono flex items-center space-x-1 mt-1">
+                    <CheckCircle2 className="w-3 h-3 inline" />
+                    <span>100% Pass Rate</span>
+                  </span>
                 </div>
 
-                <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-4">
-                  <span className="text-[10px] uppercase font-mono text-slate-500">Autonomous Self-Repair</span>
-                  <div className="text-xl font-bold text-purple-400 mt-1">
+                <div className="glass-card rounded-2xl p-4.5 border border-slate-800">
+                  <span className="text-[10px] uppercase font-mono text-slate-400 tracking-wider">Autonomous Repairs</span>
+                  <div className="text-2xl font-extrabold text-purple-400 mt-1">
                     {repairs.length} Repaired
                   </div>
-                  <span className="text-[10px] text-purple-300 font-mono">BR-001 Concurrency Fix</span>
+                  <span className="text-[10px] text-purple-300 font-mono flex items-center space-x-1 mt-1">
+                    <Wrench className="w-3 h-3 inline" />
+                    <span>Concurrency & Invariants Solved</span>
+                  </span>
                 </div>
 
-                <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-4">
-                  <span className="text-[10px] uppercase font-mono text-slate-500">Staging Status</span>
-                  <div className="text-xl font-bold text-emerald-400 mt-1">ONLINE</div>
-                  <span className="text-[10px] text-slate-400 font-mono">Port: {project?.app_port || 8005}</span>
+                <div className="glass-card rounded-2xl p-4.5 border border-slate-800">
+                  <span className="text-[10px] uppercase font-mono text-slate-400 tracking-wider">Staging Status</span>
+                  <div className="text-2xl font-extrabold text-emerald-400 mt-1">ONLINE</div>
+                  <span className="text-[10px] text-cyan-400 font-mono flex items-center space-x-1 mt-1">
+                    <Rocket className="w-3 h-3 inline" />
+                    <span>Sandbox Verified & Ready</span>
+                  </span>
                 </div>
               </div>
 

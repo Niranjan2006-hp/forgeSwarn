@@ -61,31 +61,34 @@ export default function PipelineTracker({ currentStatus }) {
   };
 
   return (
-    <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-5 shadow-xl">
+    <div className="glass-panel border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-xl relative overflow-hidden">
       <div className="flex justify-between items-center mb-4">
         <div>
-          <h2 className="text-sm font-semibold text-slate-200 tracking-wide uppercase font-mono flex items-center space-x-2">
-            <span>Swarm Engineering Pipeline</span>
-            <span className="text-[11px] text-cyan-400 font-normal">({currentStatus})</span>
+          <h2 className="text-xs sm:text-sm font-bold text-slate-200 tracking-wide uppercase font-mono flex items-center space-x-2.5">
+            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+            <span>Autonomous Engineering Pipeline</span>
+            <span className="text-[11px] text-cyan-400 font-mono px-2 py-0.5 rounded bg-cyan-950/80 border border-cyan-800">
+              {currentStatus}
+            </span>
           </h2>
         </div>
       </div>
 
-      <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-9 gap-2">
+      <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-9 gap-2.5">
         {STAGES.map((stg, idx) => {
           const state = getStageState(stg.id, idx);
           const Icon = stg.icon;
 
-          let badgeColor = 'bg-slate-800/40 text-slate-500 border-slate-800';
+          let badgeColor = 'bg-slate-900/60 text-slate-500 border-slate-800/80';
           let iconColor = 'text-slate-500';
           let indicator = null;
 
           if (state === 'completed') {
-            badgeColor = 'bg-emerald-950/40 text-emerald-300 border-emerald-800/60';
+            badgeColor = 'bg-emerald-950/40 text-emerald-300 border-emerald-500/40 shadow-sm';
             iconColor = 'text-emerald-400';
             indicator = <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />;
           } else if (state === 'running') {
-            badgeColor = 'bg-cyan-950/80 text-cyan-200 border-cyan-500 shadow-md shadow-cyan-500/20';
+            badgeColor = 'bg-cyan-950/90 text-cyan-200 border-cyan-400 shadow-lg shadow-cyan-500/20 scale-[1.03] z-10';
             iconColor = 'text-cyan-400 animate-pulse';
             indicator = <Loader2 className="w-3.5 h-3.5 text-cyan-400 animate-spin" />;
           } else if (state === 'failed') {
@@ -97,7 +100,7 @@ export default function PipelineTracker({ currentStatus }) {
           return (
             <div
               key={stg.id}
-              className={`p-3 rounded-lg border flex flex-col items-center justify-between text-center transition-all ${badgeColor}`}
+              className={`p-3 rounded-xl border flex flex-col items-center justify-between text-center transition-all duration-300 ${badgeColor}`}
             >
               <div className="flex items-center justify-between w-full mb-2">
                 <span className="text-[10px] font-mono text-slate-400">0{idx + 1}</span>

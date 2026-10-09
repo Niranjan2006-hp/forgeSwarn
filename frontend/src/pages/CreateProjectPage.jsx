@@ -6,22 +6,22 @@ import { projectApi } from '../services/api';
 
 const PRESET_REQUIREMENTS = [
   {
-    title: 'Hospital Appointment Platform (Primary Hackathon Demo)',
+    title: 'Interactive Calculator Application',
+    domain: 'Productivity',
+    name: 'Scientific & Expression Calculator Application',
+    requirement: 'Build a full-featured calculator web application with arithmetic operations (+, -, *, /), parentheses evaluation, percentage calculation, keyboard support, dark mode UI, and an interactive calculation audit history log.'
+  },
+  {
+    title: 'Hospital Appointment Management System',
     domain: 'Healthcare',
     name: 'Hospital Appointment Management System',
     requirement: 'Build a hospital appointment platform where patients can register, view doctors, check available appointment slots, book appointments, and cancel appointments. A doctor must never have two patients booked for the same time slot.'
   },
   {
-    title: 'E-Commerce Inventory & Order Platform',
-    domain: 'Retail',
-    name: 'Inventory & Flash Sale Platform',
+    title: 'Real-Time Inventory & Flash Sale System',
+    domain: 'E-Commerce',
+    name: 'Warehouse Flash Sale & Inventory System',
     requirement: 'Build an inventory order management system where customers can view products, check real-time stock levels, place orders, and cancel orders. An item with zero stock must never be oversold under concurrent checkout requests.'
-  },
-  {
-    title: 'Fintech Dual-Entry Ledger System',
-    domain: 'Financial Services',
-    name: 'Real-Time Financial Settlement Ledger',
-    requirement: 'Build a dual-entry financial transaction ledger where users can create accounts, deposit funds, transfer balances between accounts, and view audit history. Account balances must never overdraft below zero under concurrent transfer requests.'
   }
 ];
 

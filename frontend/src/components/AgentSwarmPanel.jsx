@@ -4,10 +4,10 @@ import { Bot, Check, Shield, Cpu, Terminal, Wrench, Bug, Sparkles, HelpCircle } 
 export default function AgentSwarmPanel({ agents = [] }) {
   if (!agents || agents.length === 0) {
     return (
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 text-center">
-        <Bot className="w-10 h-10 text-slate-600 mx-auto mb-3" />
-        <h3 className="text-sm font-medium text-slate-400">Swarm Formation Pending</h3>
-        <p className="text-xs text-slate-500 mt-1">Agents will be dynamically assembled based on the Engineering Contract.</p>
+      <div className="glass-panel border border-slate-800 rounded-2xl p-10 text-center">
+        <Bot className="w-12 h-12 text-slate-600 mx-auto mb-3" />
+        <h3 className="text-sm font-semibold text-slate-300">Swarm Formation Pending</h3>
+        <p className="text-xs text-slate-500 mt-1">Agents are assembled dynamically based on the project requirements.</p>
       </div>
     );
   }
@@ -15,36 +15,39 @@ export default function AgentSwarmPanel({ agents = [] }) {
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h3 className="text-xs font-mono uppercase tracking-wider text-slate-400">
-          Dynamically Formed Swarm ({agents.length} Specialized Agents)
+        <h3 className="text-xs font-mono uppercase tracking-wider text-slate-400 flex items-center space-x-2">
+          <span className="w-2 h-2 rounded-full bg-cyan-400"></span>
+          <span>Dynamically Formed Swarm ({agents.length} Specialized Agents)</span>
         </h3>
-        <span className="text-[11px] text-cyan-400 font-mono">100% Autonomous Consensus</span>
+        <span className="text-[11px] text-cyan-400 font-mono px-2.5 py-0.5 rounded-full bg-cyan-950/80 border border-cyan-800">
+          Autonomous Consensus
+        </span>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {agents.map((ag) => (
           <div
             key={ag.id}
-            className="bg-slate-900/90 border border-slate-800 hover:border-slate-700 rounded-xl p-4.5 transition-all shadow-md hover:shadow-cyan-950/20 flex flex-col justify-between"
+            className="glass-card rounded-2xl p-5 shadow-lg flex flex-col justify-between"
           >
             <div>
               {/* Header */}
               <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center space-x-2.5">
+                <div className="flex items-center space-x-3">
                   <div
-                    className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs"
+                    className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm shadow-md"
                     style={{ backgroundColor: `${ag.avatar_color}25`, color: ag.avatar_color, border: `1px solid ${ag.avatar_color}60` }}
                   >
-                    <Bot className="w-4 h-4" />
+                    <Bot className="w-5 h-5" />
                   </div>
                   <div>
-                    <h4 className="text-sm font-semibold text-white leading-tight">{ag.name}</h4>
-                    <p className="text-[11px] text-slate-400">{ag.role}</p>
+                    <h4 className="text-sm font-bold text-white leading-tight">{ag.name}</h4>
+                    <p className="text-xs text-slate-400">{ag.role}</p>
                   </div>
                 </div>
 
                 <div className="flex flex-col items-end">
-                  <span className="flex items-center space-x-1 text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-950/70 text-emerald-400 border border-emerald-800/80">
+                  <span className="flex items-center space-x-1 text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-950/80 text-emerald-400 border border-emerald-800/80">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                     <span>ACTIVE</span>
                   </span>
@@ -56,7 +59,7 @@ export default function AgentSwarmPanel({ agents = [] }) {
 
               {/* Selection Reasoning */}
               {ag.selection_reason && (
-                <div className="bg-slate-950/70 border border-slate-800/70 rounded-lg p-2.5 mb-3 text-[11px] text-slate-300 leading-relaxed">
+                <div className="bg-slate-950/80 border border-slate-800/80 rounded-xl p-3 mb-3 text-xs text-slate-300 leading-relaxed">
                   <span className="font-semibold text-cyan-400">Why Selected: </span>
                   {ag.selection_reason}
                 </div>

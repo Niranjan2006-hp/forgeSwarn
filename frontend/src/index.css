@@ -15,33 +15,85 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #0B1120;
+  background: #080B10;
 }
 
 ::-webkit-scrollbar-thumb {
   background: #1E293B;
-  border-radius: 3px;
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: #06B6D4;
 }
 
-.glow-cyan {
-  box-shadow: 0 0 20px -5px rgba(6, 182, 212, 0.4);
+/* Glassmorphism effects */
+.glass-panel {
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.glow-pulse {
-  animation: glowPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+.glass-card {
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(56, 189, 248, 0.12);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-@keyframes glowPulse {
+.glass-card:hover {
+  border-color: rgba(6, 182, 212, 0.35);
+  box-shadow: 0 10px 30px -10px rgba(6, 182, 212, 0.2);
+  transform: translateY(-2px);
+}
+
+/* Animated Shimmer & Gradient Flow */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 3s infinite;
+}
+
+/* Floating animation */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-6px); }
+}
+
+.animate-float {
+  animation: float 5s ease-in-out infinite;
+}
+
+/* Subtle glowing pulse */
+@keyframes pulseGlow {
   0%, 100% {
-    opacity: 1;
-    filter: drop-shadow(0 0 8px rgba(6, 182, 212, 0.6));
+    box-shadow: 0 0 20px -5px rgba(6, 182, 212, 0.35);
   }
   50% {
-    opacity: 0.7;
-    filter: drop-shadow(0 0 2px rgba(6, 182, 212, 0.2));
+    box-shadow: 0 0 35px 2px rgba(6, 182, 212, 0.6);
   }
+}
+
+.glow-cyan-pulse {
+  animation: pulseGlow 3s ease-in-out infinite;
+}
+
+.glow-cyan {
+  box-shadow: 0 0 25px -5px rgba(6, 182, 212, 0.35);
+}
+
+.glow-indigo {
+  box-shadow: 0 0 25px -5px rgba(99, 102, 241, 0.35);
+}
+
+/* Grid background pattern */
+.bg-grid-pattern {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+  background-size: 24px 24px;
 }
