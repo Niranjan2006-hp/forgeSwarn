@@ -147,15 +147,24 @@ export default function FinalReport({ project, metrics, tests = [], bugs = [], r
       <div className="border-t border-slate-800 pt-6 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-mono">
         <div>
           <span className="text-slate-500 block uppercase text-[10px]">Staging Deployment URL</span>
-          <a
-            href={project?.app_url || 'http://127.0.0.1:8005'}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-cyan-400 hover:underline flex items-center space-x-1 mt-1 font-bold"
-          >
-            <span>{project?.app_url || 'http://127.0.0.1:8005'}</span>
-            <ExternalLink className="w-3 h-3" />
-          </a>
+          {(() => {
+            let u = project?.app_url;
+            if (!u || u.includes('127.0.0.1') || u.includes('localhost:80')) {
+              u = `/api/projects/${project?.id}/app/`;
+            }
+            const linkUrl = u.startsWith('http') ? u : `${window.location.origin}${u}`;
+            return (
+              <a
+                href={linkUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-cyan-400 hover:underline flex items-center space-x-1 mt-1 font-bold"
+              >
+                <span>{linkUrl}</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            );
+          })()}
         </div>
 
         <div>

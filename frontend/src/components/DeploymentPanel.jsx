@@ -9,7 +9,13 @@ export default function DeploymentPanel({ project, deployment = [] }) {
 
   const activeDeployment = deployment[0] || {};
   const isHealthy = project?.status === 'COMPLETED' || activeDeployment.status === 'HEALTHY';
-  const appUrl = project?.app_url || activeDeployment.app_url || 'http://127.0.0.1:8005';
+  
+  // Resolve unified reverse proxy URL for cloud & local execution
+  let rawUrl = project?.app_url || activeDeployment.app_url;
+  if (!rawUrl || rawUrl.includes('127.0.0.1') || rawUrl.includes('localhost:80')) {
+    rawUrl = `/api/projects/${project?.id}/app/`;
+  }
+  const displayUrl = rawUrl.startsWith('http') ? rawUrl : `${window.location.origin}${rawUrl}`;
 
   return (
     <div className="space-y-6">
@@ -37,13 +43,13 @@ export default function DeploymentPanel({ project, deployment = [] }) {
                   </span>
                 )}
               </div>
-              <p className="text-xs font-mono text-cyan-400 mt-1 select-all">{appUrl}</p>
+              <p className="text-xs font-mono text-cyan-400 mt-1 select-all">{displayUrl}</p>
             </div>
           </div>
 
           <div className="flex items-center space-x-3">
             <a
-              href={appUrl}
+              href={displayUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-xs px-4 py-2 rounded-lg transition flex items-center space-x-2 shadow-lg shadow-cyan-600/30"
@@ -95,7 +101,7 @@ export default function DeploymentPanel({ project, deployment = [] }) {
           <div className="flex items-center space-x-2">
             <span className="text-[10px] text-slate-500 font-mono">Port: {project?.app_port || 8005}</span>
             <a
-              href={appUrl}
+              href={displayUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="text-xs text-cyan-400 hover:underline flex items-center space-x-1"
@@ -108,10 +114,10 @@ export default function DeploymentPanel({ project, deployment = [] }) {
 
         <div className="h-[600px] w-full bg-slate-950">
           <iframe
-            src={appUrl}
+            src={rawUrl}
             title={project?.name || "Generated Staging Application"}
             className="w-full h-full border-none"
-            sandbox="allow-scripts allow-same-origin allow-forms"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups"
           />
         </div>
       </div>

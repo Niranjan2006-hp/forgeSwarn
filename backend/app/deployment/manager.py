@@ -12,10 +12,11 @@ logger = logging.getLogger("forgeswarm.deployment")
 
 class DeploymentManager:
     _running_processes: Dict[str, subprocess.Popen] = {}
+    _running_ports: Dict[str, int] = {}
 
     @classmethod
     def get_free_port(cls, default_port: int = 8010) -> int:
-        for port in range(default_port, default_port + 100):
+        for port in range(default_port, default_port + 150):
             try:
                 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                     s.bind(("127.0.0.1", port))
@@ -25,10 +26,43 @@ class DeploymentManager:
         return default_port
 
     @classmethod
+    def ensure_running(cls, project_id: str) -> Optional[int]:
+        """
+        Guarantees that the staging process for project_id is alive and healthy.
+        If it terminated or the host container restarted, automatically relaunches it.
+        Returns the active internal port on 127.0.0.1.
+        """
+        if project_id in cls._running_processes and project_id in cls._running_ports:
+            proc = cls._running_processes[project_id]
+            port = cls._running_ports[project_id]
+            if proc.poll() is None:
+                # Fast liveness probe
+                try:
+                    with httpx.Client(timeout=1.0) as client:
+                        resp = client.get(f"http://127.0.0.1:{port}/health")
+                        if resp.status_code == 200:
+                            return port
+                except Exception:
+                    pass
+
+        # Needs start or restart
+        ws = ProjectWorkspace(project_id)
+        if not (ws.root_path / "app" / "main.py").exists():
+            logger.warning(f"Project {project_id} does not have app/main.py; cannot start staging.")
+            return None
+
+        logger.info(f"Auto-spawning staging server for project {project_id}...")
+        res = cls.deploy_staging(project_id, ws)
+        if res.get("status") == "HEALTHY":
+            return res.get("port")
+        return None
+
+    @classmethod
     def deploy_staging(cls, project_id: str, workspace: ProjectWorkspace) -> Dict[str, Any]:
         """
         Deploys the generated project to an isolated local execution sandbox.
         Validates deployment via automated health check probes and smoke testing.
+        Exposes the app publicly via ForgeSwarm's unified reverse proxy route: /api/projects/{project_id}/app/
         """
         # Stop any existing process for this project
         cls.stop_deployment(project_id)
@@ -51,8 +85,9 @@ class DeploymentManager:
             text=True
         )
         cls._running_processes[project_id] = proc
+        cls._running_ports[project_id] = port
 
-        # Health check polling
+        # Internal health check polling
         target_url = f"http://127.0.0.1:{port}"
         health_url = f"{target_url}/health"
         is_healthy = False
@@ -91,7 +126,7 @@ class DeploymentManager:
                 "port": port,
                 "health_check_status": "FAIL",
                 "smoke_tests_passed": False,
-                "logs": "Health check timed out after 7.5 seconds."
+                "logs": "Health check timed out after 8 seconds."
             }
 
         # Run Smoke Tests against the live running instance
@@ -116,13 +151,17 @@ class DeploymentManager:
                 "logs": "Smoke test failed: Server endpoints did not respond as expected. Deployment rolled back."
             }
 
+        # The public unified URL routes via ForgeSwarm's secure proxy
+        public_url = f"/api/projects/{project_id}/app/"
+
         return {
             "status": "HEALTHY",
-            "app_url": target_url,
+            "app_url": public_url,
+            "internal_url": target_url,
             "port": port,
             "health_check_status": "PASS",
             "smoke_tests_passed": True,
-            "logs": f"Staging server successfully deployed on {target_url}. Health check and smoke tests PASSED."
+            "logs": f"Staging server successfully deployed on {public_url} (internal sandbox port {port}). Health check and smoke tests PASSED."
         }
 
     @classmethod
@@ -138,6 +177,9 @@ class DeploymentManager:
                 except Exception:
                     pass
             del cls._running_processes[project_id]
+        
+        if project_id in cls._running_ports:
+            del cls._running_ports[project_id]
 
     @classmethod
     def rollback(cls, project_id: str):

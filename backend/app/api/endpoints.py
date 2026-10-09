@@ -1,9 +1,13 @@
 import json
 import asyncio
+import logging
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+import httpx
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request, Response
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger("forgeswarm.api")
 
 from app.core.database import get_db
 from app.models import (
@@ -87,6 +91,8 @@ def list_projects(db: Session = Depends(get_db)):
     projects = db.query(Project).order_by(Project.created_at.desc()).all()
     out = []
     for p in projects:
+        if p.status == "COMPLETED":
+            p.app_url = f"/api/projects/{p.id}/app/"
         resp = ProjectResponse.model_validate(p)
         resp.metrics = calculate_metrics(p, db)
         out.append(resp)
@@ -99,15 +105,12 @@ def get_project(project_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Project not found")
         
     # Auto-ensure staging server is online for completed projects
-    if proj.status == "COMPLETED" and project_id not in DeploymentManager._running_processes:
-        from app.execution.workspace import ProjectWorkspace
-        ws = ProjectWorkspace(project_id)
-        if (ws.root_path / "app" / "main.py").exists():
-            dep_res = DeploymentManager.deploy_staging(project_id, ws)
-            if dep_res.get("app_url"):
-                proj.app_url = dep_res["app_url"]
-                proj.app_port = dep_res["port"]
-                db.commit()
+    if proj.status == "COMPLETED":
+        proj.app_url = f"/api/projects/{proj.id}/app/"
+        port = DeploymentManager.ensure_running(project_id)
+        if port:
+            proj.app_port = port
+            db.commit()
 
     resp = ProjectResponse.model_validate(proj)
     resp.metrics = calculate_metrics(proj, db)
@@ -246,3 +249,127 @@ async def stream_project_events(project_id: str):
             "X-Accel-Buffering": "no"
         }
     )
+
+@router.api_route("/projects/{project_id}/app", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
+@router.api_route("/projects/{project_id}/app/", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
+@router.api_route("/projects/{project_id}/app/{subpath:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
+async def proxy_project_app(project_id: str, request: Request, subpath: str = "", db: Session = Depends(get_db)):
+    """
+    Unified Cloud Reverse Proxy & Execution Sandbox Gateway.
+    Proxies browser requests to the internal generated microservice running on 127.0.0.1:{port}.
+    Guarantees that deployed apps work anywhere in the world (Render, cloud, mobile, tunnels)
+    without requiring external open ports or triggering Mixed Content blocking.
+    """
+    proj = db.query(Project).filter(Project.id == project_id).first()
+    if not proj:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    port = DeploymentManager.ensure_running(project_id)
+    if not port:
+        raise HTTPException(
+            status_code=503,
+            detail="Staging application is currently stopped or still compiling. Please run or restart the project."
+        )
+
+    # Normalize subpath
+    normalized_subpath = subpath.lstrip("/")
+    target_url = f"http://127.0.0.1:{port}/{normalized_subpath}"
+    if request.url.query:
+        target_url = f"{target_url}?{request.url.query}"
+
+    # Extract headers (filtering host)
+    headers = dict(request.headers)
+    headers.pop("host", None)
+    headers.pop("content-length", None)
+
+    body = await request.body()
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.request(
+                method=request.method,
+                url=target_url,
+                headers=headers,
+                content=body,
+                follow_redirects=True
+            )
+            
+            content_type = resp.headers.get("content-type", "")
+            
+            # If HTML response (e.g. index page), inject script to intercept relative and absolute API fetches
+            if "text/html" in content_type:
+                html_text = resp.text
+                app_base = f"/api/projects/{project_id}/app"
+                
+                # Injected script: patches window.fetch and XMLHttpRequest to prefix requests to /api/ with app_base
+                injection = f"""
+<script>
+(function() {{
+  const APP_PREFIX = "{app_base}";
+  const origFetch = window.fetch;
+  window.fetch = function(url, options) {{
+    if (typeof url === 'string') {{
+      if (url.startsWith('/api') || url.startsWith('/health') || url.startsWith('/docs') || url.startsWith('/openapi.json')) {{
+        if (!url.startsWith(APP_PREFIX)) {{
+          url = APP_PREFIX + url;
+        }}
+      }} else if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('//') && !url.startsWith(APP_PREFIX)) {{
+        url = APP_PREFIX + (url.startsWith('/') ? '' : '/') + url;
+      }}
+    }}
+    return origFetch.call(this, url, options);
+  }};
+
+  const origOpen = XMLHttpRequest.prototype.open;
+  XMLHttpRequest.prototype.open = function(method, url, ...rest) {{
+    if (typeof url === 'string') {{
+      if (url.startsWith('/api') || url.startsWith('/health') || url.startsWith('/docs') || url.startsWith('/openapi.json')) {{
+        if (!url.startsWith(APP_PREFIX)) {{
+          url = APP_PREFIX + url;
+        }}
+      }} else if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('//') && !url.startsWith(APP_PREFIX)) {{
+        url = APP_PREFIX + (url.startsWith('/') ? '' : '/') + url;
+      }}
+    }}
+    return origOpen.call(this, method, url, ...rest);
+  }};
+}})();
+</script>
+"""
+                # Insert injection right after <head> or at start
+                if "<head>" in html_text:
+                    html_text = html_text.replace("<head>", f"<head>{injection}", 1)
+                elif "<head " in html_text:
+                    parts = html_text.split(">", 1)
+                    html_text = f"{parts[0]}>{injection}{parts[1]}"
+                else:
+                    html_text = injection + html_text
+                
+                return Response(
+                    content=html_text,
+                    status_code=resp.status_code,
+                    media_type="text/html",
+                    headers={
+                        "Content-Type": "text/html; charset=utf-8",
+                        "X-Frame-Options": "ALLOWALL",
+                        "Access-Control-Allow-Origin": "*"
+                    }
+                )
+            
+            # For JSON, CSS, JS, images, etc.
+            response_headers = {
+                k: v for k, v in resp.headers.items()
+                if k.lower() not in ["content-encoding", "content-length", "transfer-encoding", "connection"]
+            }
+            response_headers["Access-Control-Allow-Origin"] = "*"
+            response_headers["X-Frame-Options"] = "ALLOWALL"
+
+            return Response(
+                content=resp.content,
+                status_code=resp.status_code,
+                headers=response_headers,
+                media_type=content_type
+            )
+    except Exception as e:
+        logger.error(f"Error proxying staging request for {project_id}: {e}")
+        raise HTTPException(status_code=502, detail=f"Failed to communicate with staging application: {str(e)}")
