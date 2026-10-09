@@ -3,6 +3,7 @@ import {
   Rocket, ExternalLink, CheckCircle2, ShieldCheck, 
   Server, Cpu, Activity, RefreshCw, Smartphone, Monitor 
 } from 'lucide-react';
+import { API_BASE_URL } from '../services/api';
 
 export default function DeploymentPanel({ project, deployment = [] }) {
   const [viewMode, setViewMode] = useState('browser'); // 'browser' or 'details'
@@ -15,7 +16,18 @@ export default function DeploymentPanel({ project, deployment = [] }) {
   if (!rawUrl || rawUrl.includes('127.0.0.1') || rawUrl.includes('localhost:80')) {
     rawUrl = `/api/projects/${project?.id}/app/`;
   }
-  const displayUrl = rawUrl.startsWith('http') ? rawUrl : `${window.location.origin}${rawUrl}`;
+  
+  // Resolve target backend origin (works seamlessly whether frontend is served by backend or standalone CDN/Vercel/Render)
+  let backendOrigin = window.location.origin;
+  try {
+    if (API_BASE_URL && API_BASE_URL.startsWith('http')) {
+      backendOrigin = new URL(API_BASE_URL).origin;
+    }
+  } catch (e) {}
+
+  const displayUrl = rawUrl.startsWith('http') 
+    ? rawUrl 
+    : `${backendOrigin}${rawUrl}`;
 
   return (
     <div className="space-y-6">

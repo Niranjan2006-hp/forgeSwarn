@@ -3,6 +3,7 @@ import {
   FileCheck2, CheckCircle2, ShieldCheck, Rocket, 
   Wrench, Bug, Award, ExternalLink, Printer, Sparkles, Layers, Cpu
 } from 'lucide-react';
+import { API_BASE_URL } from '../services/api';
 
 export default function FinalReport({ project, metrics, tests = [], bugs = [], repairs = [], requirements = [] }) {
   const handlePrint = () => {
@@ -152,7 +153,14 @@ export default function FinalReport({ project, metrics, tests = [], bugs = [], r
             if (!u || u.includes('127.0.0.1') || u.includes('localhost:80')) {
               u = `/api/projects/${project?.id}/app/`;
             }
-            const linkUrl = u.startsWith('http') ? u : `${window.location.origin}${u}`;
+            let backendOrigin = window.location.origin;
+            try {
+              if (API_BASE_URL && API_BASE_URL.startsWith('http')) {
+                backendOrigin = new URL(API_BASE_URL).origin;
+              }
+            } catch (e) {}
+
+            const linkUrl = u.startsWith('http') ? u : `${backendOrigin}${u}`;
             return (
               <a
                 href={linkUrl}
